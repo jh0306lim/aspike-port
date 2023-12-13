@@ -107,7 +107,8 @@ int note(const char *msg, int fd);
 int is_function_call(const char *buf, int *index, int *arity);
 int function_call(const char *buf, int *index, int arity, int fd_out);
 
-int call_get_status(const char *buf, int *index, int arity, int fd_out);
+int call_cluster_get(const char *buf, int *index, int arity, int fd_out);
+int call_config_get(const char *buf, int *index, int arity, int fd_out);
 int call_connect_1(const char *buf, int *index, int arity, int fd_out);
 int call_connect_3(const char *buf, int *index, int arity, int fd_out);
 int call_init_aerospike(const char *buf, int *index, int arity, int fd_out);
@@ -199,8 +200,11 @@ int function_call(const char *buf, int *index, int arity, int fd_out) {
     if (check_name(fname, "node_get_random", arity, 1)) {
         return call_get_random_node(buf, index, arity, fd_out);
     }
-    if (check_name(fname, "get_status", arity, 1)) {
-        return call_get_status(buf, index, arity, fd_out);
+    if (check_name(fname, "config_get", arity, 1)) {
+        return call_config_get(buf, index, arity, fd_out);
+    }
+    if (check_name(fname, "cluster_get", arity, 1)) {
+        return call_cluster_get(buf, index, arity, fd_out);
     }
 
 
@@ -215,14 +219,13 @@ int function_call(const char *buf, int *index, int arity, int fd_out) {
     return 0;
 }
 
-int call_get_status(const char *buf, int *index, int arity, int fd_out){
+int call_config_get(const char *buf, int *index, int arity, int fd_out){
     PRE
-    CHECK_AEROSPIKE_INIT 
-    
+    CHECK_AEROSPIKE_INIT     
     OK0
 
-    as_config *config = &as.config;   
-    as_vector* hosts = config->hosts;
+    as_config  *config = &as.config;   
+    as_vector  *hosts = config->hosts;
 
     ei_x_encode_map_header(&res_buf, 28);
     ei_x_encode_atom(&res_buf, "user");
@@ -281,6 +284,30 @@ int call_get_status(const char *buf, int *index, int arity, int fd_out){
     ei_x_encode_ulong(&res_buf, config->shm_max_namespaces);
     ei_x_encode_atom(&res_buf, "shm_takeover_threshold_sec");
     ei_x_encode_ulong(&res_buf, config->shm_takeover_threshold_sec);
+
+    end:
+    POST
+}
+int call_cluster_get(const char *buf, int *index, int arity, int fd_out){
+    PRE
+    CHECK_AEROSPIKE_INIT     
+    OK0
+
+    as_cluster *cluster = as.cluster;
+
+    ei_x_encode_map_header(&res_buf, 6);
+    ei_x_encode_atom(&res_buf, "cluster_name");
+    ei_x_encode_string(&res_buf, cluster->cluster_name == NULL ? "null" : cluster->cluster_name);
+    ei_x_encode_atom(&res_buf, "user");
+    ei_x_encode_string(&res_buf, cluster->user == NULL ? "null" : cluster->user);
+    ei_x_encode_atom(&res_buf, "password");
+    ei_x_encode_string(&res_buf, cluster->password == NULL ? "null" : cluster->password);
+    ei_x_encode_atom(&res_buf, "nodes_number");
+    ei_x_encode_long(&res_buf, cluster->nodes == NULL ? 0 : cluster->nodes->size);
+    ei_x_encode_atom(&res_buf, "random_node_index");
+    ei_x_encode_long(&res_buf, cluster->node_index);
+    ei_x_encode_atom(&res_buf, "n_partitions");
+    ei_x_encode_long(&res_buf, cluster->n_partitions);
 
     end:
     POST
@@ -574,3 +601,73 @@ int call_get_random_node(const char *buf, int *index, int arity, int fd_out) {
     end:
     POST
 }
+
+
+
+// int call_scan(const char *buf, int *index, int arity, int fd_out) {
+//     PRE
+//     char namespace[MAX_NAMESPACE_SIZE];
+//     char set[MAX_SET_SIZE];
+
+//     if (ei_decode_string(buf, index, namespace) != 0) {
+//         ERROR("invalid first argument: namespace")
+//         goto end;
+//     } 
+//     if (ei_decode_string(buf, index, set) != 0) {
+//         ERROR("invalid second argument: set")
+//         goto end;
+//     } 
+
+//     CHECK_ALL
+// 	// Specify the namespace and set to use during the scan.
+// 	as_scan scan;
+// 	as_scan_init(&scan, namespace, set);
+//     as_error err;
+
+// 	if (aerospike_scan_foreach(&as, &err, NULL, &scan, scan_cb, NULL) != AEROSPIKE_OK) {
+//         ERROR(err.msg)
+// 		as_scan_destroy(&scan);
+// 		goto end;
+// 	}
+   
+//     end:
+//     POST
+// }
+
+// int call_scan_bin(const char *buf, int *index, int arity, int fd_out) {
+//     PRE
+//     char bin[AS_BIN_NAME_MAX_SIZE];
+//     char namespace[MAX_NAMESPACE_SIZE];
+//     char set[MAX_SET_SIZE];
+
+//     if (ei_decode_string(buf, index, bin) != 0) {
+//         ERROR("invalid first argument: bin")
+//         goto end;
+//     }
+//     if (ei_decode_string(buf, index, namespace) != 0) {
+//         ERROR("invalid second argument: namespace")
+//         goto end;
+//     } 
+//     if (ei_decode_string(buf, index, set) != 0) {
+//         ERROR("invalid third argument: set")
+//         goto end;
+//     } 
+
+//     CHECK_ALL
+// 	// Specify the namespace and set to use during the scan.
+// 	as_scan scan;
+// 	as_scan_init(&scan, namespace, set);
+//     as_error err;
+   
+// 	as_scan_select_inita(&scan, 1);
+// 	as_scan_select(&scan, bin);
+
+// 	if (aerospike_scan_foreach(&as, &err, NULL, &scan, scan_cb, NULL) != AEROSPIKE_OK) {
+//         ERROR(err.msg)
+// 		as_scan_destroy(&scan);
+// 		goto end;
+// 	}
+
+//     end:
+//     POST
+// }

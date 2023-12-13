@@ -1,13 +1,13 @@
 % -------------------------------------------------------------------------------
 % -------------------------------------------------------------------------------
 
--module(aerospike_srv).
+-module(aspike_srv).
 
 -behaviour(gen_server).
 
 % -------------------------------------------------------------------------------
 
--define(EXT_PROC_NAME, "aerospike_port").
+-define(EXT_PROC_NAME, "aspike_port").
 -define(DEFAULT_TIMEOUT, 1000).
 
 -ifndef(TEST).
@@ -44,7 +44,8 @@
     connect/0,
     connect/2,
     init_aerospike/0,
-    status_get/0,
+    config_get/0,
+    cluster_get/0,
     key_put/0,
     key_put/2,
     key_put/5,
@@ -82,7 +83,7 @@ b() ->
     ok.
 
 start() ->
-    start(code:priv_dir(aerospike_port), ?EXT_PROC_NAME).
+    start(code:priv_dir(aspike_port), ?EXT_PROC_NAME).
 start(Dir, Prg) ->
     start(Dir ++ "/" ++ Prg).
 start(ExtPrg) ->
@@ -151,9 +152,13 @@ key_get(Bin, Namespace, Set, KeyStr) when is_list(Bin); is_list(Namespace); is_l
     command({key_get, Bin, Namespace, Set, KeyStr}).
     
 
--spec status_get() -> {ok, map()} | {error, term()}.
-status_get() ->
-    command({status_get}).
+-spec config_get() -> {ok, map()} | {error, term()}.
+config_get() ->
+    command({config_get}).
+
+-spec cluster_get() -> {ok, map()} | {error, term()}.
+cluster_get() ->
+    command({cluster_get}).
 
 -spec node_get_random() -> {ok, string()} | {error, term()}.
 node_get_random() ->
@@ -219,3 +224,5 @@ call_port(Caller, Port, Msg) ->
 % -------------------------------------------------------------------------------
     % aql -h 127.0.0.1:3010
     % asadm -e info
+    % docker run -d --name aerospike -p 3010-3002:3011-3002 aerospike:ee-7.0.0.3 
+    % 
