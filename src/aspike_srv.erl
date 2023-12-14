@@ -44,8 +44,8 @@
     connect/0,
     connect/2,
     init_aerospike/0,
-    config_get/0,
-    cluster_get/0,
+    config_info/0,
+    cluster_info/0,
     key_put/0,
     key_put/2,
     key_put/5,
@@ -55,8 +55,9 @@
     key_get/0,
     key_get/1,
     key_get/4,
-    node_get/0,
-    node_get_random/0,
+    node_random/0,
+    node_names/0,
+    node_get/1,
 % ------
     bar/1,
     foo/1]).
@@ -152,21 +153,25 @@ key_get(Bin, Namespace, Set, KeyStr) when is_list(Bin); is_list(Namespace); is_l
     command({key_get, Bin, Namespace, Set, KeyStr}).
     
 
--spec config_get() -> {ok, map()} | {error, term()}.
-config_get() ->
-    command({config_get}).
+-spec config_info() -> {ok, map()} | {error, term()}.
+config_info() ->
+    command({config_info}).
 
--spec cluster_get() -> {ok, map()} | {error, term()}.
-cluster_get() ->
-    command({cluster_get}).
+-spec cluster_info() -> {ok, map()} | {error, term()}.
+cluster_info() ->
+    command({cluster_info}).
 
--spec node_get_random() -> {ok, string()} | {error, term()}.
-node_get_random() ->
-    command({node_get_random}).
+-spec node_random() -> {ok, string()} | {error, term()}.
+node_random() ->
+    command({node_random}).
 
--spec node_get() -> {ok, [string()]} | {error, term()}.
-node_get() ->
-    command({node_get}).
+-spec node_names() -> {ok, [string()]} | {error, term()}.
+node_names() ->
+    command({node_names}).
+
+-spec node_get(string) -> {ok, string()} | {error, term()}.
+node_get(NodeName) ->
+    command({node_get, NodeName}).
 
 -spec foo(integer()) -> {ok, integer()} | {error, term()}.
 foo(X) when is_integer(X) -> 
@@ -226,3 +231,8 @@ call_port(Caller, Port, Msg) ->
     % asadm -e info
     % docker run -d --name aerospike -p 3010-3002:3011-3002 aerospike:ee-7.0.0.3 
     % 
+    % 
+% -------------------------------------------------------------------------------
+% aspike_srv:node_random().
+% {ok,"127.0.0.1:3010"}
+% -------------------------------------------------------------------------------

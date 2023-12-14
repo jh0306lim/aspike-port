@@ -20,6 +20,7 @@
 #define MAX_NAMESPACE_SIZE 32	// based on current server limit
 #define MAX_SET_SIZE 64			// based on current server limit
 #define AS_BIN_NAME_MAX_SIZE 16
+// #define AS_NODE_NAME_MAX_SIZE 16
 
 const char DEFAULT_HOST[] = "127.0.0.1";
 // const int DEFAULT_PORT = 3000;
@@ -107,16 +108,22 @@ int note(const char *msg, int fd);
 int is_function_call(const char *buf, int *index, int *arity);
 int function_call(const char *buf, int *index, int arity, int fd_out);
 
-int call_cluster_get(const char *buf, int *index, int arity, int fd_out);
-int call_config_get(const char *buf, int *index, int arity, int fd_out);
+int call_cluster_info(const char *buf, int *index, int arity, int fd_out);
+int call_config_info(const char *buf, int *index, int arity, int fd_out);
+
 int call_connect_1(const char *buf, int *index, int arity, int fd_out);
 int call_connect_3(const char *buf, int *index, int arity, int fd_out);
+
 int call_init_aerospike(const char *buf, int *index, int arity, int fd_out);
 int call_config_add_hosts(const char *buf, int *index, int arity, int fd_out);
+
 int call_key_put(const char *buf, int *index, int arity, int fd_out);
 int call_key_remove(const char *buf, int *index, int arity, int fd_out);
 int call_key_get(const char *buf, int *index, int arity, int fd_out);
-int call_get_random_node(const char *buf, int *index, int arity, int fd_out);
+
+int call_node_random(const char *buf, int *index, int arity, int fd_out);
+int call_node_names(const char *buf, int *index, int arity, int fd_out);
+int call_node_get(const char *buf, int *index, int arity, int fd_out);
 
 int call_foo(const char *buf, int *index, int arity, int fd_out);
 int call_bar(const char *buf, int *index, int arity, int fd_out);
@@ -197,14 +204,20 @@ int function_call(const char *buf, int *index, int arity, int fd_out) {
     if (check_name(fname, "key_get", arity, 5)) {
         return call_key_get(buf, index, arity, fd_out);
     }
-    if (check_name(fname, "node_get_random", arity, 1)) {
-        return call_get_random_node(buf, index, arity, fd_out);
+    if (check_name(fname, "node_random", arity, 1)) {
+        return call_node_random(buf, index, arity, fd_out);
     }
-    if (check_name(fname, "config_get", arity, 1)) {
-        return call_config_get(buf, index, arity, fd_out);
+    if (check_name(fname, "node_names", arity, 1)) {
+        return call_node_names(buf, index, arity, fd_out);
     }
-    if (check_name(fname, "cluster_get", arity, 1)) {
-        return call_cluster_get(buf, index, arity, fd_out);
+    if (check_name(fname, "node_get", arity, 2)) {
+        return call_node_get(buf, index, arity, fd_out);
+    }
+    if (check_name(fname, "config_info", arity, 1)) {
+        return call_config_info(buf, index, arity, fd_out);
+    }
+    if (check_name(fname, "cluster_info", arity, 1)) {
+        return call_cluster_info(buf, index, arity, fd_out);
     }
 
 
@@ -219,7 +232,7 @@ int function_call(const char *buf, int *index, int arity, int fd_out) {
     return 0;
 }
 
-int call_config_get(const char *buf, int *index, int arity, int fd_out){
+int call_config_info(const char *buf, int *index, int arity, int fd_out){
     PRE
     CHECK_AEROSPIKE_INIT     
     OK0
@@ -235,7 +248,7 @@ int call_config_get(const char *buf, int *index, int arity, int fd_out){
     ei_x_encode_atom(&res_buf, "number_of_hosts");
     ei_x_encode_ulong(&res_buf, hosts == NULL ? 0 : hosts->size);
     ei_x_encode_atom(&res_buf, "cluster_name");
-    ei_x_encode_atom(&res_buf, config->cluster_name == NULL ? "null" : config->cluster_name);
+    ei_x_encode_string(&res_buf, config->cluster_name == NULL ? "null" : config->cluster_name);
     ei_x_encode_atom(&res_buf, "ip_map_size");
     ei_x_encode_ulong(&res_buf, config->ip_map_size);
     ei_x_encode_atom(&res_buf, "min_conns_per_node");
@@ -288,7 +301,7 @@ int call_config_get(const char *buf, int *index, int arity, int fd_out){
     end:
     POST
 }
-int call_cluster_get(const char *buf, int *index, int arity, int fd_out){
+int call_cluster_info(const char *buf, int *index, int arity, int fd_out){
     PRE
     CHECK_AEROSPIKE_INIT     
     OK0
@@ -587,7 +600,7 @@ int call_key_get(const char *buf, int *index, int arity, int fd_out) {
     POST
 }
 
-int call_get_random_node(const char *buf, int *index, int arity, int fd_out) {
+int call_node_random(const char *buf, int *index, int arity, int fd_out) {
     PRE
     CHECK_ALL
     as_node* node = as_node_get_random(as.cluster);
@@ -602,7 +615,44 @@ int call_get_random_node(const char *buf, int *index, int arity, int fd_out) {
     POST
 }
 
+int call_node_names(const char *buf, int *index, int arity, int fd_out) {
+    PRE
+    CHECK_ALL
+    int n_nodes = 0;
+    char* node_names = 0;
+    as_cluster_get_node_names(as.cluster, &n_nodes, &node_names);
 
+    OK0
+    ei_x_encode_list_header(&res_buf, n_nodes);
+    for(int i = 0; i < n_nodes; i++){
+        ei_x_encode_string(&res_buf, &node_names[i]);
+    }
+    ei_x_encode_empty_list(&res_buf);
+
+    end:
+    POST
+}
+
+int call_node_get(const char *buf, int *index, int arity, int fd_out) {
+    PRE
+    char node_name[AS_NODE_NAME_MAX_SIZE];
+    if (ei_decode_string(buf, index, node_name) != 0) {
+        ERROR("invalid first argument: node_name")
+        goto end;
+    }
+    CHECK_ALL
+
+    as_node* node = as_node_get_by_name(as.cluster, node_name);
+    if (! node) {
+        ERROR("Failed to find server node.");
+        goto end;
+	}
+    OK(as_node_get_address_string(node))
+    as_node_release(node);
+
+    end:
+    POST
+}
 
 // int call_scan(const char *buf, int *index, int arity, int fd_out) {
 //     PRE
