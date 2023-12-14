@@ -114,8 +114,9 @@ int call_config_info(const char *buf, int *index, int arity, int fd_out);
 int call_connect_1(const char *buf, int *index, int arity, int fd_out);
 int call_connect_3(const char *buf, int *index, int arity, int fd_out);
 
-int call_init_aerospike(const char *buf, int *index, int arity, int fd_out);
+int call_aerospike_init(const char *buf, int *index, int arity, int fd_out);
 int call_config_add_hosts(const char *buf, int *index, int arity, int fd_out);
+int call_port_status(const char *buf, int *index, int arity, int fd_out);
 
 int call_key_put(const char *buf, int *index, int arity, int fd_out);
 int call_key_remove(const char *buf, int *index, int arity, int fd_out);
@@ -183,10 +184,10 @@ int function_call(const char *buf, int *index, int arity, int fd_out) {
         return 0;
     }
 
-    if (check_name(fname, "init_aerospike", arity, 1)) {
-        return call_init_aerospike(buf, index, arity, fd_out);
+    if (check_name(fname, "aerospike_init", arity, 1)) {
+        return call_aerospike_init(buf, index, arity, fd_out);
     }
-    if (check_name(fname, "add_destination", arity, 3)) {
+    if (check_name(fname, "destination_add", arity, 3)) {
         return call_config_add_hosts(buf, index, arity, fd_out);
     }
     if (check_name(fname, "connect", arity, 1)) {
@@ -218,6 +219,9 @@ int function_call(const char *buf, int *index, int arity, int fd_out) {
     }
     if (check_name(fname, "cluster_info", arity, 1)) {
         return call_cluster_info(buf, index, arity, fd_out);
+    }
+    if (check_name(fname, "port_status", arity, 1)) {
+        return call_port_status(buf, index, arity, fd_out);
     }
 
 
@@ -301,9 +305,10 @@ int call_config_info(const char *buf, int *index, int arity, int fd_out){
     end:
     POST
 }
+
 int call_cluster_info(const char *buf, int *index, int arity, int fd_out){
     PRE
-    CHECK_AEROSPIKE_INIT     
+    CHECK_ALL
     OK0
 
     as_cluster *cluster = as.cluster;
@@ -326,7 +331,20 @@ int call_cluster_info(const char *buf, int *index, int arity, int fd_out){
     POST
 }
 
-int call_init_aerospike(const char *buf, int *index, int arity, int fd_out) {
+int call_port_status(const char *buf, int *index, int arity, int fd_out) {
+    PRE
+    OK0
+
+    ei_x_encode_map_header(&res_buf, 2);
+    ei_x_encode_atom(&res_buf, "is_aerospike_initialised");
+    ei_x_encode_boolean(&res_buf, is_aerospike_initialised);
+    ei_x_encode_atom(&res_buf, "is_connected");
+    ei_x_encode_boolean(&res_buf, is_connected);
+
+    POST
+}
+
+int call_aerospike_init(const char *buf, int *index, int arity, int fd_out) {
     PRE
     if (!is_aerospike_initialised) {
         as_config config;

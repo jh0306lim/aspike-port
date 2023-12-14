@@ -38,14 +38,14 @@
 ]).
 
 -export([
-    add_destination/0,
-    add_destination/2,
+    aerospike_init/0,
     command/1,
     connect/0,
     connect/2,
-    init_aerospike/0,
     config_info/0,
     cluster_info/0,
+    destination_add/0,
+    destination_add/2,
     key_put/0,
     key_put/2,
     key_put/5,
@@ -58,6 +58,8 @@
     node_random/0,
     node_names/0,
     node_get/1,
+    port_status/0,
+    port_info/0,
 % ------
     bar/1,
     foo/1]).
@@ -77,9 +79,7 @@
 
 -spec b() -> ok.
 b() ->
-    start(),
-    init_aerospike(),
-    add_destination(),
+    destination_add(),
     connect(),
     ok.
 
@@ -92,27 +92,27 @@ start(ExtPrg) ->
 -endif.
 
 start_link() ->
-    start_link(code:priv_dir(aerospike_port), ?EXT_PROC_NAME).
+    start_link(code:priv_dir(aspike_port), ?EXT_PROC_NAME).
 start_link(Dir, Prg) ->
     start_link(Dir ++ "/" ++ Prg).
 start_link(ExtPrg) ->
-    gen_server:start({local, ?MODULE}, ?MODULE, ExtPrg, []).
+    gen_server:start_link({local, ?MODULE}, ?MODULE, ExtPrg, []).
 
 -spec command(term()) -> term().
 command(Cmd) -> 
     gen_server:call(?MODULE, {command, Cmd}, ?DEFAULT_TIMEOUT + 10).
 
--spec init_aerospike() -> {ok, string()} | {error, string()}.
-init_aerospike() ->
-    command({init_aerospike}).
+-spec aerospike_init() -> {ok, string()} | {error, string()}.
+aerospike_init() ->
+    command({aerospike_init}).
 
--spec add_destination() -> {ok, string()} | {error, string()}.
-add_destination() ->
-    add_destination("127.0.0.1", 3010).
+-spec destination_add() -> {ok, string()} | {error, string()}.
+destination_add() ->
+    destination_add("127.0.0.1", 3010).
 
--spec add_destination(string(), non_neg_integer()) -> {ok, integer()} | {error, term()}.
-add_destination(Host, Port) when is_list(Host); is_integer(Port) -> 
-    command({add_destination, Host, Port}).
+-spec destination_add(string(), non_neg_integer()) -> {ok, integer()} | {error, term()}.
+destination_add(Host, Port) when is_list(Host); is_integer(Port) -> 
+    command({destination_add, Host, Port}).
 
 -spec connect() -> {ok, string()} | {error, string()}.
 connect() ->
@@ -173,6 +173,14 @@ node_names() ->
 node_get(NodeName) ->
     command({node_get, NodeName}).
 
+-spec port_status() -> {ok, map()} | {error, term()}.
+port_status() ->
+    command({port_status}).
+
+-spec port_info() -> [tuple()]| undefined.
+port_info() ->
+    gen_server:call(?MODULE, port_info).
+
 -spec foo(integer()) -> {ok, integer()} | {error, term()}.
 foo(X) when is_integer(X) -> 
     command({foo, X}).
@@ -190,10 +198,14 @@ bar(X) ->
 init(ExtPrg) ->
     process_flag(trap_exit, true),
     Port = open_port({spawn_executable, ExtPrg}, [{packet, 2}, binary, nouse_stdio]),
+    spawn(fun aerospike_init/0),
     {ok, #state{ext_prg = ExtPrg, port = Port}}.
-
+    
 handle_call({command, Msg}, {Caller, _}, State=#state{port = Port}) ->
-    ok, Res = call_port(Caller, Port, Msg),
+    Res = call_port(Caller, Port, Msg),
+    {reply, Res, State};
+handle_call(port_info, _, State=#state{port = Port}) ->
+    Res = erlang:port_info(Port),
     {reply, Res, State};
 handle_call(Msg, _From, State) ->
     io:format("~p:~p Msg = ~p~n",[?MODULE, ?FUNCTION_NAME, Msg]),
@@ -233,6 +245,14 @@ call_port(Caller, Port, Msg) ->
     % 
     % 
 % -------------------------------------------------------------------------------
-% aspike_srv:node_random().
+% 5> aspike_srv:destination_add().
+% {ok,"host and port added"}
+% 6> aspike_srv:connect().
+% {ok,"connected"}
+% 7> aspike_srv:node_random().
+% {ok,"127.0.0.1:3010"}
+% 8> aspike_srv:node_names(). 
+% {ok,["BB9020011AC4202"]}
+% 9> aspike_srv:node_get("BB9020011AC4202").
 % {ok,"127.0.0.1:3010"}
 % -------------------------------------------------------------------------------

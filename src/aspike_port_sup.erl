@@ -26,10 +26,19 @@ start_link() ->
 %%                  type => worker(),       % optional
 %%                  modules => modules()}   % optional
 init([]) ->
-    SupFlags = #{strategy => one_for_all,
-                 intensity => 0,
-                 period => 1},
-    ChildSpecs = [],
+    Aspike = #{
+		id       => aspike_srv,
+		start    => {aspike_srv, start_link, []},
+		restart  => permanent,
+		shutdown => brutal_kill,
+		type     => worker
+		},
+    SupFlags = #{
+    	strategy  => one_for_one,
+    	intensity => 1,
+        period    => 1
+        },
+    ChildSpecs = [Aspike],
     {ok, {SupFlags, ChildSpecs}}.
 
 %% internal functions
