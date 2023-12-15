@@ -5,6 +5,7 @@
 #include <stdlib.h>
 
 #include <aerospike/aerospike.h>
+#include <aerospike/aerospike_info.h>
 #include <aerospike/aerospike_key.h>
 #include <aerospike/as_error.h>
 #include <aerospike/as_record.h>
@@ -111,8 +112,7 @@ int function_call(const char *buf, int *index, int arity, int fd_out);
 int call_cluster_info(const char *buf, int *index, int arity, int fd_out);
 int call_config_info(const char *buf, int *index, int arity, int fd_out);
 
-int call_connect_1(const char *buf, int *index, int arity, int fd_out);
-int call_connect_3(const char *buf, int *index, int arity, int fd_out);
+int call_connect(const char *buf, int *index, int arity, int fd_out);
 
 int call_aerospike_init(const char *buf, int *index, int arity, int fd_out);
 int call_config_add_hosts(const char *buf, int *index, int arity, int fd_out);
@@ -125,6 +125,8 @@ int call_key_get(const char *buf, int *index, int arity, int fd_out);
 int call_node_random(const char *buf, int *index, int arity, int fd_out);
 int call_node_names(const char *buf, int *index, int arity, int fd_out);
 int call_node_get(const char *buf, int *index, int arity, int fd_out);
+
+int call_help(const char *buf, int *index, int arity, int fd_out);
 
 int call_foo(const char *buf, int *index, int arity, int fd_out);
 int call_bar(const char *buf, int *index, int arity, int fd_out);
@@ -190,11 +192,8 @@ int function_call(const char *buf, int *index, int arity, int fd_out) {
     if (check_name(fname, "destination_add", arity, 3)) {
         return call_config_add_hosts(buf, index, arity, fd_out);
     }
-    if (check_name(fname, "connect", arity, 1)) {
-        return call_connect_1(buf, index, arity, fd_out);
-    }
     if (check_name(fname, "connect", arity, 3)) {
-        return call_connect_3(buf, index, arity, fd_out);
+        return call_connect(buf, index, arity, fd_out);
     }
     if (check_name(fname, "key_put", arity, 6)) {
         return call_key_put(buf, index, arity, fd_out);
@@ -216,6 +215,9 @@ int function_call(const char *buf, int *index, int arity, int fd_out) {
     }
     if (check_name(fname, "config_info", arity, 1)) {
         return call_config_info(buf, index, arity, fd_out);
+    }
+    if (check_name(fname, "help", arity, 2)) {
+        return call_help(buf, index, arity, fd_out);
     }
     if (check_name(fname, "cluster_info", arity, 1)) {
         return call_cluster_info(buf, index, arity, fd_out);
@@ -384,26 +386,7 @@ int call_config_add_hosts(const char *buf, int *index, int arity, int fd_out) {
     POST
 }
 
-int call_connect_1(const char *buf, int *index, int arity, int fd_out) {
-    PRE
-    CHECK_INIT
-
-	as_error err; 
-	if (aerospike_connect(&as, &err) != AEROSPIKE_OK) {
-		// as_event_close_loops();
-        ERROR(err.message)
-        is_connected = 0;
-        goto end;
-	}
-
-    OK("connected")
-    is_connected = 1;
-
-    end:
-    POST
-}
-
-int call_connect_3(const char *buf, int *index, int arity, int fd_out) {
+int call_connect(const char *buf, int *index, int arity, int fd_out) {
     PRE
     char user[AS_USER_SIZE];
     char password[AS_PASSWORD_SIZE];
@@ -671,6 +654,43 @@ int call_node_get(const char *buf, int *index, int arity, int fd_out) {
     end:
     POST
 }
+
+
+int call_help(const char *buf, int *index, int arity, int fd_out) {
+    PRE
+    char item[1024];
+    if (ei_decode_string(buf, index, item) != 0) {
+        ERROR("invalid first argument: item")
+        goto end;
+    } 
+
+    CHECK_ALL  
+
+	as_error err;
+	as_error_reset(&err);
+	as_status rc = AEROSPIKE_OK;
+    char * result = NULL;
+
+    rc = aerospike_info_any(&as, &err, NULL, item, &result);
+	if (rc != AEROSPIKE_OK) {
+		// as_event_close_loops();
+        ERROR(err.message)
+        goto end;
+	}
+
+    if(result == NULL){
+        ERROR("no data")
+        goto end;
+    }
+
+    OK(result)
+    free(result);
+
+    end:
+    POST
+}
+
+
 
 // int call_scan(const char *buf, int *index, int arity, int fd_out) {
 //     PRE

@@ -60,6 +60,8 @@
     node_get/1,
     port_status/0,
     port_info/0,
+    help/0,
+    help/1,
 % ------
     bar/1,
     foo/1]).
@@ -116,7 +118,7 @@ destination_add(Host, Port) when is_list(Host); is_integer(Port) ->
 
 -spec connect() -> {ok, string()} | {error, string()}.
 connect() ->
-    command({connect}).
+    connect("", "").
 
 -spec connect(string(), string()) -> {ok, string()} | {error, string()}.
 connect(User, Pwd) when is_list(User); is_list(Pwd) -> 
@@ -176,6 +178,14 @@ node_get(NodeName) ->
 -spec port_status() -> {ok, map()} | {error, term()}.
 port_status() ->
     command({port_status}).
+
+-spec help() -> {ok, string()} | {error, term()}.
+help() -> help("namespaces").
+
+% -spec help("bins" | "sets" | "node" | "namespaces" | "udf-list" | "sindex-list:" | "edition" | "get-config:context=namespace;id=test") -> {ok, string()} | {error, term()}.
+-spec help(string()) -> {ok, string()} | {error, term()}.
+help(Item) ->
+    command({help, Item}).
 
 -spec port_info() -> [tuple()]| undefined.
 port_info() ->
@@ -255,4 +265,13 @@ call_port(Caller, Port, Msg) ->
 % {ok,["BB9020011AC4202"]}
 % 9> aspike_srv:node_get("BB9020011AC4202").
 % {ok,"127.0.0.1:3010"}
+% 
+% 8> aspike_srv:help("namespaces").
+% {ok,"namespaces\ttest\n"}
+% 9> aspike_srv:help("nodes").     
+% {error,"no data"}
+% 10> aspike_srv:help("node"). 
+% {ok,"node\tBB9020011AC4202\n"}
+% 13> aspike_srv:help("bins").
+% {ok,"bins\ttest:bin_names=90,bin_names_quota=65535,bin1,bin2,bin3,bin4,test-bin-1,test-bin-2,test-bin-3,test-bin,test-bin-4,mapbin,numbers-bin,binint,binstr,loc,geofilterloc,geofilteramen,myBin,i,s,l,m,a,b,c,d,e,f,g,b1,b2,,bina,binb,binc,app,map,incr,pp,intbin,stringbin,test-list-1,temp,C,testmap,otherbin,map_keystr_bin,map_valstr_bin,bitbin,hllbin_1,hllbin_2,hllbin_3,hllbin_l,hllbin,A,B,D,E,New,binlist,binmap,B5,new_bin,new_bin[0],x,y,z,bigstr,NUMERIC,bn_STRING,int_bin,double_bin,qebin1,qebin2,a_int_bin,a_double_bin,foo,geobin,geolistbin,geomapbin,otherBin,scan-expop,listbin,bbb,list,erl-bin-1,erl_bin_2,Anatoly,bar,baz,erl-bin-111;\n"}
 % -------------------------------------------------------------------------------
