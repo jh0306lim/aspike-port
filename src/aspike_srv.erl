@@ -8,7 +8,9 @@
 % -------------------------------------------------------------------------------
 
 -define(EXT_PROC_NAME, "aspike_port").
--define(DEFAULT_TIMEOUT, 1000).
+-define(DEFAULT_TIMEOUT, 10000).
+-define(DEFAULT_HOST, "127.0.0.1").
+-define(DEFAULT_PORT, 3010).
 
 -ifndef(TEST).
 -define(TEST, true).
@@ -58,6 +60,9 @@
     node_random/0,
     node_names/0,
     node_get/1,
+    node_info/2,
+    host_info/1,
+    host_info/3,
     port_status/0,
     port_info/0,
     help/0,
@@ -110,7 +115,7 @@ aerospike_init() ->
 
 -spec destination_add() -> {ok, string()} | {error, string()}.
 destination_add() ->
-    destination_add("127.0.0.1", 3010).
+    destination_add(?DEFAULT_HOST, ?DEFAULT_PORT).
 
 -spec destination_add(string(), non_neg_integer()) -> {ok, integer()} | {error, term()}.
 destination_add(Host, Port) when is_list(Host); is_integer(Port) -> 
@@ -171,9 +176,21 @@ node_random() ->
 node_names() ->
     command({node_names}).
 
--spec node_get(string) -> {ok, string()} | {error, term()}.
+-spec node_get(string()) -> {ok, string()} | {error, term()}.
 node_get(NodeName) ->
     command({node_get, NodeName}).
+
+-spec node_info(string(), string()) -> {ok, [string()]} | {error, term()}.
+node_info(NodeName, Item) ->
+    command({node_info, NodeName, Item}).
+
+-spec host_info(string()) -> {ok, [string()]} | {error, string()}.
+host_info(Item) ->
+    host_info(?DEFAULT_HOST, ?DEFAULT_PORT, Item).
+
+-spec host_info(string(), non_neg_integer(), string()) -> {ok, [string()]} | {error, term()}.
+host_info(HostName, Port, Item) ->
+    command({host_info, HostName, Port, Item}).
 
 -spec port_status() -> {ok, map()} | {error, term()}.
 port_status() ->
@@ -182,7 +199,8 @@ port_status() ->
 -spec help() -> {ok, string()} | {error, term()}.
 help() -> help("namespaces").
 
-% -spec help("bins" | "sets" | "node" | "namespaces" | "udf-list" | "sindex-list:" | "edition" | "get-config:context=namespace;id=test") -> {ok, string()} | {error, term()}.
+% -spec help("bins" | "sets" | "node" | "namespaces" | "udf-list" | "sindex-list:" | "edition" | "get-config:context=namespace;id=test", "get-config") -> 
+% {ok, string()} | {error, term()}.
 -spec help(string()) -> {ok, string()} | {error, term()}.
 help(Item) ->
     command({help, Item}).
@@ -253,7 +271,7 @@ call_port(Caller, Port, Msg) ->
     % asadm -e info
     % docker run -d --name aerospike -p 3010-3002:3011-3002 aerospike:ee-7.0.0.3 
     % 
-    % 
+    % make EVENT_LIB=libev
 % -------------------------------------------------------------------------------
 % 5> aspike_srv:destination_add().
 % {ok,"host and port added"}
@@ -265,6 +283,8 @@ call_port(Caller, Port, Msg) ->
 % {ok,["BB9020011AC4202"]}
 % 9> aspike_srv:node_get("BB9020011AC4202").
 % {ok,"127.0.0.1:3010"}
+% 4> aspike_srv:node_info("BB9020011AC4202", "namespaces").
+% {ok,["namespaces\ttest\n"]}
 % 
 % 8> aspike_srv:help("namespaces").
 % {ok,"namespaces\ttest\n"}

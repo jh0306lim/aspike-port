@@ -13,6 +13,7 @@
 #include <aerospike/as_status.h>
 #include <aerospike/as_node.h>
 #include <aerospike/as_cluster.h>
+#include <aerospike/as_lookup.h>
 
 // ----------------------------------------------------------------------------
 
@@ -125,6 +126,9 @@ int call_key_get(const char *buf, int *index, int arity, int fd_out);
 int call_node_random(const char *buf, int *index, int arity, int fd_out);
 int call_node_names(const char *buf, int *index, int arity, int fd_out);
 int call_node_get(const char *buf, int *index, int arity, int fd_out);
+int call_node_info(const char *buf, int *index, int arity, int fd_out);
+
+int call_host_info(const char *buf, int *index, int arity, int fd_out);
 
 int call_help(const char *buf, int *index, int arity, int fd_out);
 
@@ -213,6 +217,12 @@ int function_call(const char *buf, int *index, int arity, int fd_out) {
     if (check_name(fname, "node_get", arity, 2)) {
         return call_node_get(buf, index, arity, fd_out);
     }
+    if (check_name(fname, "node_info", arity, 3)) {
+        return call_node_info(buf, index, arity, fd_out);
+    }
+    if (check_name(fname, "host_info", arity, 4)) {
+        return call_host_info(buf, index, arity, fd_out);
+    }
     if (check_name(fname, "config_info", arity, 1)) {
         return call_config_info(buf, index, arity, fd_out);
     }
@@ -246,7 +256,7 @@ int call_config_info(const char *buf, int *index, int arity, int fd_out){
     as_config  *config = &as.config;   
     as_vector  *hosts = config->hosts;
 
-    ei_x_encode_map_header(&res_buf, 28);
+    ei_x_encode_map_header(&res_buf, 29);
     ei_x_encode_atom(&res_buf, "user");
     ei_x_encode_string(&res_buf, config->user);
     ei_x_encode_atom(&res_buf, "password");
@@ -303,6 +313,16 @@ int call_config_info(const char *buf, int *index, int arity, int fd_out){
     ei_x_encode_ulong(&res_buf, config->shm_max_namespaces);
     ei_x_encode_atom(&res_buf, "shm_takeover_threshold_sec");
     ei_x_encode_ulong(&res_buf, config->shm_takeover_threshold_sec);
+// --------------------
+    ei_x_encode_atom(&res_buf, "policy_info");
+    ei_x_encode_map_header(&res_buf, 3);
+    ei_x_encode_atom(&res_buf, "timeout");
+    ei_x_encode_ulong(&res_buf, config->policies.info.timeout);
+    ei_x_encode_atom(&res_buf, "send_as_is");
+    ei_x_encode_boolean(&res_buf, config->policies.info.send_as_is);
+    ei_x_encode_atom(&res_buf, "check_bounds");
+    ei_x_encode_boolean(&res_buf, config->policies.info.check_bounds);
+
 
     end:
     POST
@@ -650,6 +670,113 @@ int call_node_get(const char *buf, int *index, int arity, int fd_out) {
 	}
     OK(as_node_get_address_string(node))
     as_node_release(node);
+
+    end:
+    POST
+}
+
+int call_node_info(const char *buf, int *index, int arity, int fd_out) {
+    PRE
+    char node_name[AS_NODE_NAME_MAX_SIZE];
+    char item[1024];
+    if (ei_decode_string(buf, index, node_name) != 0) {
+        ERROR("invalid first argument: node_name")
+        goto end;
+    }
+    if (ei_decode_string(buf, index, item) != 0) {
+        ERROR("invalid second argument: item")
+        goto end;
+    }
+    CHECK_ALL
+
+	as_cluster* cluster = as.cluster;
+    as_node* node = as_node_get_by_name(cluster, node_name);
+    if (! node) {
+        ERROR("Failed to find server node.");
+        goto end;
+	}
+
+    char *info = NULL;
+    as_error err;
+    const as_policy_info* policy = &as.config.policies.info;
+	uint64_t deadline = as_socket_deadline(policy->timeout);
+    as_status status = AEROSPIKE_ERR_CLUSTER;
+
+    status = as_info_command_node(&err, node, (char*)item, policy->send_as_is, deadline, &info);
+    if (status != AEROSPIKE_OK) {
+        as_node_release(node);
+        // ERROR(err.message);
+        ERROR("err.message");
+        goto end;
+    }
+
+    OK0
+    ei_x_encode_list_header(&res_buf, 1);
+    ei_x_encode_string(&res_buf, &info[0]);
+    ei_x_encode_empty_list(&res_buf);
+    as_node_release(node);
+
+    end:
+    POST
+}
+
+int call_host_info(const char *buf, int *index, int arity, int fd_out) {
+    PRE
+    char hostname[AS_NODE_NAME_MAX_SIZE];
+    char item[1024];
+    long port;
+    if (ei_decode_string(buf, index, hostname) != 0) {
+        ERROR("invalid first argument: hostname")
+        goto end;
+    }
+    if (ei_decode_long(buf, index, &port) != 0) {
+        ERROR("invalid second argument: port")
+        goto end;
+    }
+    if (ei_decode_string(buf, index, item) != 0) {
+        ERROR("invalid third argument: item")
+        goto end;
+    }
+    CHECK_ALL
+
+    as_error err;
+    as_address_iterator iter;
+
+	as_status status = as_lookup_host(&iter, &err, hostname, port);
+	
+	if (status) {
+        ERROR("Failed to find host.");
+        goto end;
+	}
+    
+	as_cluster* cluster = as.cluster;
+    char *info = NULL;
+    const as_policy_info* policy = &as.config.policies.info;
+	uint64_t deadline = as_socket_deadline(policy->timeout);
+	struct sockaddr* addr;
+	bool loop = true;
+
+	while (loop && as_lookup_next(&iter, &addr)) {
+		status = as_info_command_host(cluster, &err, addr, (char*)item, policy->send_as_is, deadline, &info, hostname);
+		
+		switch (status) {
+			case AEROSPIKE_OK:
+			case AEROSPIKE_ERR_TIMEOUT:
+			case AEROSPIKE_ERR_INDEX_FOUND:
+			case AEROSPIKE_ERR_INDEX_NOT_FOUND:
+				loop = false;
+				break;
+				
+			default:
+				break;
+		}
+	}
+	as_lookup_end(&iter);
+
+    OK0
+    ei_x_encode_list_header(&res_buf, 1);
+    ei_x_encode_string(&res_buf, &info[0]);
+    ei_x_encode_empty_list(&res_buf);
 
     end:
     POST
