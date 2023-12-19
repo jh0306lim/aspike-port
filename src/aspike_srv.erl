@@ -25,10 +25,14 @@
 
 -ifdef(TEST).
 -export([
-    start/0,
-    b/0
+    start/0
 ]).
 -endif.
+
+-export([
+    mk_args/2,
+    b/0
+]).
 
 % gen_server callbacks
 -export([
@@ -81,8 +85,6 @@
 % -------------------------------------------------------------------------------
 %  API
 % -------------------------------------------------------------------------------
- 
--ifdef(TEST).
 
 -spec b() -> ok.
 b() ->
@@ -90,6 +92,11 @@ b() ->
     connect(),
     ok.
 
+% @doc Used in ${tsl.erl} to create argument list for testin function
+-spec mk_args(atom(), non_neg_integer()) -> [term()].
+mk_args(_, _) -> [].
+
+-ifdef(TEST).
 start() ->
     start(code:priv_dir(aspike_port), ?EXT_PROC_NAME).
 start(Dir, Prg) ->
@@ -275,8 +282,12 @@ info_render({ok, Info}, Item) ->
         "sets" -> sets_render(Tail);
         "bins" -> bins_render(Tail);
         "sindex-list:" -> sindexes_render(Tail);
-    _ -> Tail
-        end,
+        % "get-config" -> config_render(Tail);
+        _ -> case re:run(Item, "get-config") of
+                {match, _} -> config_render(Tail);
+                _ -> Tail
+        end
+    end,
     {ok, {F, Res}}.
 
 sets_render(Sets) ->
@@ -299,7 +310,7 @@ bin_render([[A, B| Bins ]  | Tail]) ->
     [A1, A2] = string:split(A, "="),
     [A11, A12] = string:split(A1, ":"),
     [B1, B2] = string:split(B, "="),
-    [[{"ns", A11}, {A12, value_render(A2)}, {B1, value_render(B2)}, {"names", Bins}] | bin_render(Tail)].
+    [maps:from_list([{"ns", A11}, {A12, value_render(A2)}, {B1, value_render(B2)}, {"names", Bins}]) | bin_render(Tail)].
 
 sindexes_render(Indexes) ->
     sindex_render([string:split(Ind, ":", all) || Ind <- Indexes]).
@@ -311,6 +322,11 @@ sindex_render([F | Tail]) ->
     Y = [list_to_tuple(S) || S <- X, length(S) == 2],
     Z = maps:from_list([{A, value_render(B)} || {A, B} <- Y]),
     [Z | sindex_render(Tail)].
+
+config_render(Conf) ->
+    X = string:split(Conf, ";", all),
+    Y = [L || L <- [string:split(S, "=", leading) || S <- X], length(L) == 2],
+    maps:from_list([{A, value_render(B)} || [A, B] <- Y]).
 
 -spec value_render(string()) -> false | true | integer() | float() | string().
 value_render("false") -> false;
@@ -360,4 +376,11 @@ value_render(V) ->
 %    "indexname" => "page-index","indextype" => "default",
 %    "ns" => "test","set" => "queryresume","state" => "RW",
 %    "type" => "numeric"}]}}
+% 
+% 12> tsl:tst(aspike_srv, key_put, 0, 10000).
+% aspike_srv:key_put, N=0, R=10000, Time=628.3231
+% ok
+% 13> tsl:tst(aspike_srv, key_get, 0, 10000).
+% aspike_srv:key_get, N=0, R=10000, Time=635.6161
+% ok
 % -------------------------------------------------------------------------------
