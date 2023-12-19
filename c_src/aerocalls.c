@@ -705,8 +705,12 @@ int call_node_info(const char *buf, int *index, int arity, int fd_out) {
     status = as_info_command_node(&err, node, (char*)item, policy->send_as_is, deadline, &info);
     if (status != AEROSPIKE_OK) {
         as_node_release(node);
-        // ERROR(err.message);
-        ERROR("err.message");
+        ERROR(err.in_doubt == true ? "unknown error" : err.message)
+        goto end;
+    }
+
+    if(info == NULL){
+        ERROR("no data")
         goto end;
     }
 
@@ -715,6 +719,7 @@ int call_node_info(const char *buf, int *index, int arity, int fd_out) {
     ei_x_encode_string(&res_buf, &info[0]);
     ei_x_encode_empty_list(&res_buf);
     as_node_release(node);
+    free(info);
 
     end:
     POST
@@ -745,7 +750,7 @@ int call_host_info(const char *buf, int *index, int arity, int fd_out) {
 	as_status status = as_lookup_host(&iter, &err, hostname, port);
 	
 	if (status) {
-        ERROR("Failed to find host.");
+        ERROR(err.in_doubt == true ? "unknown error" : err.message)
         goto end;
 	}
     
@@ -773,10 +778,17 @@ int call_host_info(const char *buf, int *index, int arity, int fd_out) {
 	}
 	as_lookup_end(&iter);
 
+    if(info == NULL){
+        ERROR("no data")
+        goto end;
+    }
+
     OK0
     ei_x_encode_list_header(&res_buf, 1);
     ei_x_encode_string(&res_buf, &info[0]);
     ei_x_encode_empty_list(&res_buf);
+    free(&info[0]);
+    
 
     end:
     POST
@@ -794,24 +806,22 @@ int call_help(const char *buf, int *index, int arity, int fd_out) {
     CHECK_ALL  
 
 	as_error err;
-	as_error_reset(&err);
 	as_status rc = AEROSPIKE_OK;
-    char * result = NULL;
+    char * info = NULL;
 
-    rc = aerospike_info_any(&as, &err, NULL, item, &result);
+    rc = aerospike_info_any(&as, &err, NULL, item, &info);
 	if (rc != AEROSPIKE_OK) {
-		// as_event_close_loops();
-        ERROR(err.message)
+        ERROR(err.in_doubt == true ? "unknown error" : err.message)
         goto end;
 	}
 
-    if(result == NULL){
+    if(info == NULL){
         ERROR("no data")
         goto end;
     }
 
-    OK(result)
-    free(result);
+    OK(info)
+    free(info);
 
     end:
     POST

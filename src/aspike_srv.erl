@@ -182,7 +182,7 @@ node_get(NodeName) ->
 
 -spec node_info(string(), string()) -> {ok, [string()]} | {error, term()}.
 node_info(NodeName, Item) ->
-    command({node_info, NodeName, Item}).
+    info_render(command({node_info, NodeName, Item}), Item).
 
 -spec host_info(string()) -> {ok, [string()]} | {error, string()}.
 host_info(Item) ->
@@ -190,7 +190,8 @@ host_info(Item) ->
 
 -spec host_info(string(), non_neg_integer(), string()) -> {ok, [string()]} | {error, term()}.
 host_info(HostName, Port, Item) ->
-    command({host_info, HostName, Port, Item}).
+    info_render(command({host_info, HostName, Port, Item}), Item).
+
 
 -spec port_status() -> {ok, map()} | {error, term()}.
 port_status() ->
@@ -203,7 +204,7 @@ help() -> help("namespaces").
 % {ok, string()} | {error, term()}.
 -spec help(string()) -> {ok, string()} | {error, term()}.
 help(Item) ->
-    command({help, Item}).
+    info_render(command({help, Item}), Item).
 
 -spec port_info() -> [tuple()]| undefined.
 port_info() ->
@@ -265,6 +266,41 @@ call_port(Caller, Port, Msg) ->
         after ?DEFAULT_TIMEOUT -> {error, timeout_is_out}
     end.
 
+
+info_render(Res = {error, _}, _) -> 
+    Res;
+info_render({ok, Info}, Item) -> 
+    [F | Tail] = string:split(string:chomp(Info), "\t", all),
+    Res = case Item of
+        "sets" -> sets_render(Tail);
+        "bins" -> bins_render(Tail);
+        _ -> Tail
+        end,
+    {ok, {F, Res}}.
+
+sets_render(Sets) ->
+    set_render([string:split(S, ";", all) || S <- Sets]).
+
+set_render([]) -> 
+    [];
+set_render([R | Tail]) -> 
+    X = [string:split(I, ":", all)  || I <- R],
+    Y = [[list_to_tuple(string:split(I, "=", leading)) || I <- L] || L <- X],
+    Z = [maps:from_list([T || T <- L, size(T) == 2]) || L <- Y],
+    [Z | set_render(Tail)].
+
+
+
+bins_render(Bins) ->
+    bin_render([string:split(B, ",", all) || B <- Bins]).
+
+bin_render([]) ->    
+    [];
+bin_render([[A, B| Bins ]  | Tail]) ->
+    [A1, A2] = string:split(A, "="),
+    [A11, A12] = string:split(A1, ":"),
+    [B1, B2] = string:split(B, "="),
+    [[{"ns", A11}, {A12, list_to_integer(A2)}, {B1, list_to_integer(B2)}, {bins_names, Bins}] | bin_render(Tail)].
 
 % -------------------------------------------------------------------------------
     % aql -h 127.0.0.1:3010
