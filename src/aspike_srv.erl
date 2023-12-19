@@ -274,7 +274,8 @@ info_render({ok, Info}, Item) ->
     Res = case Item of
         "sets" -> sets_render(Tail);
         "bins" -> bins_render(Tail);
-        _ -> Tail
+        "sindex-list:" -> sindexes_render(Tail);
+    _ -> Tail
         end,
     {ok, {F, Res}}.
 
@@ -286,10 +287,8 @@ set_render([]) ->
 set_render([R | Tail]) -> 
     X = [string:split(I, ":", all)  || I <- R],
     Y = [[list_to_tuple(string:split(I, "=", leading)) || I <- L] || L <- X],
-    Z = [maps:from_list([T || T <- L, size(T) == 2]) || L <- Y],
+    Z = [maps:from_list([{A, value_render(B)} || {A, B} <- [T || T <- L, size(T) == 2]]) || L <- Y],
     [Z | set_render(Tail)].
-
-
 
 bins_render(Bins) ->
     bin_render([string:split(B, ",", all) || B <- Bins]).
@@ -300,7 +299,33 @@ bin_render([[A, B| Bins ]  | Tail]) ->
     [A1, A2] = string:split(A, "="),
     [A11, A12] = string:split(A1, ":"),
     [B1, B2] = string:split(B, "="),
-    [[{"ns", A11}, {A12, list_to_integer(A2)}, {B1, list_to_integer(B2)}, {bins_names, Bins}] | bin_render(Tail)].
+    [[{"ns", A11}, {A12, value_render(A2)}, {B1, value_render(B2)}, {"names", Bins}] | bin_render(Tail)].
+
+sindexes_render(Indexes) ->
+    sindex_render([string:split(Ind, ":", all) || Ind <- Indexes]).
+
+sindex_render([]) -> 
+    [];
+sindex_render([F | Tail]) -> 
+    X = [string:split(E, "=", leading) || E <- F],
+    Y = [list_to_tuple(S) || S <- X, length(S) == 2],
+    Z = maps:from_list([{A, value_render(B)} || {A, B} <- Y]),
+    [Z | sindex_render(Tail)].
+
+-spec value_render(string()) -> false | true | integer() | float() | string().
+value_render("false") -> false;
+value_render("true") -> true;
+value_render("null") -> null;
+value_render(V) -> 
+    case string:to_integer(V) of
+        {N, []} -> N;
+        _ -> 
+            case string:to_float(V) of
+                {F, []} -> F;
+                _ -> V
+            end
+    end.
+
 
 % -------------------------------------------------------------------------------
     % aql -h 127.0.0.1:3010
@@ -320,14 +345,19 @@ bin_render([[A, B| Bins ]  | Tail]) ->
 % 9> aspike_srv:node_get("BB9020011AC4202").
 % {ok,"127.0.0.1:3010"}
 % 4> aspike_srv:node_info("BB9020011AC4202", "namespaces").
-% {ok,["namespaces\ttest\n"]}
+% {ok,{"namespaces",["test"]}}
 % 
 % 8> aspike_srv:help("namespaces").
-% {ok,"namespaces\ttest\n"}
+% {ok,{"namespaces",["test"]}}
 % 9> aspike_srv:help("nodes").     
 % {error,"no data"}
 % 10> aspike_srv:help("node"). 
 % {ok,"node\tBB9020011AC4202\n"}
 % 13> aspike_srv:help("bins").
-% {ok,"bins\ttest:bin_names=90,bin_names_quota=65535,bin1,bin2,bin3,bin4,test-bin-1,test-bin-2,test-bin-3,test-bin,test-bin-4,mapbin,numbers-bin,binint,binstr,loc,geofilterloc,geofilteramen,myBin,i,s,l,m,a,b,c,d,e,f,g,b1,b2,,bina,binb,binc,app,map,incr,pp,intbin,stringbin,test-list-1,temp,C,testmap,otherbin,map_keystr_bin,map_valstr_bin,bitbin,hllbin_1,hllbin_2,hllbin_3,hllbin_l,hllbin,A,B,D,E,New,binlist,binmap,B5,new_bin,new_bin[0],x,y,z,bigstr,NUMERIC,bn_STRING,int_bin,double_bin,qebin1,qebin2,a_int_bin,a_double_bin,foo,geobin,geolistbin,geomapbin,otherBin,scan-expop,listbin,bbb,list,erl-bin-1,erl_bin_2,Anatoly,bar,baz,erl-bin-111;\n"}
+% 2> aspike_srv:help("sindex-list:").
+% {ok,{"sindex-list:",
+% [#{"bin" => "binint","context" => null,
+%    "indexname" => "page-index","indextype" => "default",
+%    "ns" => "test","set" => "queryresume","state" => "RW",
+%    "type" => "numeric"}]}}
 % -------------------------------------------------------------------------------

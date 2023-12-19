@@ -257,70 +257,70 @@ int call_config_info(const char *buf, int *index, int arity, int fd_out){
     as_vector  *hosts = config->hosts;
 
     ei_x_encode_map_header(&res_buf, 29);
-    ei_x_encode_atom(&res_buf, "user");
+    ei_x_encode_string(&res_buf, "user");
     ei_x_encode_string(&res_buf, config->user);
-    ei_x_encode_atom(&res_buf, "password");
+    ei_x_encode_string(&res_buf, "password");
     ei_x_encode_string(&res_buf, config->password);
-    ei_x_encode_atom(&res_buf, "number_of_hosts");
+    ei_x_encode_string(&res_buf, "number_of_hosts");
     ei_x_encode_ulong(&res_buf, hosts == NULL ? 0 : hosts->size);
-    ei_x_encode_atom(&res_buf, "cluster_name");
-    ei_x_encode_string(&res_buf, config->cluster_name == NULL ? "null" : config->cluster_name);
-    ei_x_encode_atom(&res_buf, "ip_map_size");
+    ei_x_encode_string(&res_buf, "cluster_name");
+    ei_x_encode_string(&res_buf, config->cluster_name == NULL ? "" : config->cluster_name);
+    ei_x_encode_string(&res_buf, "ip_map_size");
     ei_x_encode_ulong(&res_buf, config->ip_map_size);
-    ei_x_encode_atom(&res_buf, "min_conns_per_node");
+    ei_x_encode_string(&res_buf, "min_conns_per_node");
     ei_x_encode_ulong(&res_buf, config->min_conns_per_node);
-    ei_x_encode_atom(&res_buf, "max_conns_per_node");
+    ei_x_encode_string(&res_buf, "max_conns_per_node");
     ei_x_encode_ulong(&res_buf, config->max_conns_per_node);
-    ei_x_encode_atom(&res_buf, "async_min_conns_per_node");
+    ei_x_encode_string(&res_buf, "async_min_conns_per_node");
     ei_x_encode_ulong(&res_buf, config->async_min_conns_per_node);
-    ei_x_encode_atom(&res_buf, "async_max_conns_per_node");
+    ei_x_encode_string(&res_buf, "async_max_conns_per_node");
     ei_x_encode_ulong(&res_buf, config->async_max_conns_per_node);
-    ei_x_encode_atom(&res_buf, "pipe_max_conns_per_node");
+    ei_x_encode_string(&res_buf, "pipe_max_conns_per_node");
     ei_x_encode_ulong(&res_buf, config->pipe_max_conns_per_node);
-    ei_x_encode_atom(&res_buf, "conn_pools_per_node");
+    ei_x_encode_string(&res_buf, "conn_pools_per_node");
     ei_x_encode_ulong(&res_buf, config->conn_pools_per_node);
-    ei_x_encode_atom(&res_buf, "conn_timeout_ms");
+    ei_x_encode_string(&res_buf, "conn_timeout_ms");
     ei_x_encode_ulong(&res_buf, config->conn_timeout_ms);
-    ei_x_encode_atom(&res_buf, "login_timeout_ms");
+    ei_x_encode_string(&res_buf, "login_timeout_ms");
     ei_x_encode_ulong(&res_buf, config->login_timeout_ms);
-    ei_x_encode_atom(&res_buf, "max_socket_idle");
+    ei_x_encode_string(&res_buf, "max_socket_idle");
     ei_x_encode_ulong(&res_buf, config->max_socket_idle);
-    ei_x_encode_atom(&res_buf, "max_error_rate");
+    ei_x_encode_string(&res_buf, "max_error_rate");
     ei_x_encode_ulong(&res_buf, config->max_error_rate);
-    ei_x_encode_atom(&res_buf, "error_rate_window");
+    ei_x_encode_string(&res_buf, "error_rate_window");
     ei_x_encode_ulong(&res_buf, config->error_rate_window);
-    ei_x_encode_atom(&res_buf, "tender_interval");
+    ei_x_encode_string(&res_buf, "tender_interval");
     ei_x_encode_ulong(&res_buf, config->tender_interval);
-    ei_x_encode_atom(&res_buf, "thread_pool_size");
+    ei_x_encode_string(&res_buf, "thread_pool_size");
     ei_x_encode_ulong(&res_buf, config->thread_pool_size);
-    ei_x_encode_atom(&res_buf, "tend_thread_cpu");
+    ei_x_encode_string(&res_buf, "tend_thread_cpu");
     ei_x_encode_long(&res_buf, config->tend_thread_cpu);
-    ei_x_encode_atom(&res_buf, "fail_if_not_connected");
+    ei_x_encode_string(&res_buf, "fail_if_not_connected");
     ei_x_encode_boolean(&res_buf, config->fail_if_not_connected);
-    ei_x_encode_atom(&res_buf, "use_services_alternate");
+    ei_x_encode_string(&res_buf, "use_services_alternate");
     ei_x_encode_boolean(&res_buf, config->use_services_alternate);
-    ei_x_encode_atom(&res_buf, "rack_aware");
+    ei_x_encode_string(&res_buf, "rack_aware");
     ei_x_encode_boolean(&res_buf, config->rack_aware);
-    ei_x_encode_atom(&res_buf, "rack_id");
+    ei_x_encode_string(&res_buf, "rack_id");
     ei_x_encode_long(&res_buf, config->rack_id);
-    ei_x_encode_atom(&res_buf, "use_shm");
+    ei_x_encode_string(&res_buf, "use_shm");
     ei_x_encode_boolean(&res_buf, config->use_shm);
-    ei_x_encode_atom(&res_buf, "shm_key");
+    ei_x_encode_string(&res_buf, "shm_key");
     ei_x_encode_long(&res_buf, config->shm_key);
-    ei_x_encode_atom(&res_buf, "shm_max_nodes");
+    ei_x_encode_string(&res_buf, "shm_max_nodes");
     ei_x_encode_ulong(&res_buf, config->shm_max_nodes);
-    ei_x_encode_atom(&res_buf, "shm_max_namespaces");
+    ei_x_encode_string(&res_buf, "shm_max_namespaces");
     ei_x_encode_ulong(&res_buf, config->shm_max_namespaces);
-    ei_x_encode_atom(&res_buf, "shm_takeover_threshold_sec");
+    ei_x_encode_string(&res_buf, "shm_takeover_threshold_sec");
     ei_x_encode_ulong(&res_buf, config->shm_takeover_threshold_sec);
 // --------------------
-    ei_x_encode_atom(&res_buf, "policy_info");
+    ei_x_encode_string(&res_buf, "policy_info");
     ei_x_encode_map_header(&res_buf, 3);
-    ei_x_encode_atom(&res_buf, "timeout");
+    ei_x_encode_string(&res_buf, "timeout");
     ei_x_encode_ulong(&res_buf, config->policies.info.timeout);
-    ei_x_encode_atom(&res_buf, "send_as_is");
+    ei_x_encode_string(&res_buf, "send_as_is");
     ei_x_encode_boolean(&res_buf, config->policies.info.send_as_is);
-    ei_x_encode_atom(&res_buf, "check_bounds");
+    ei_x_encode_string(&res_buf, "check_bounds");
     ei_x_encode_boolean(&res_buf, config->policies.info.check_bounds);
 
 
@@ -336,17 +336,17 @@ int call_cluster_info(const char *buf, int *index, int arity, int fd_out){
     as_cluster *cluster = as.cluster;
 
     ei_x_encode_map_header(&res_buf, 6);
-    ei_x_encode_atom(&res_buf, "cluster_name");
-    ei_x_encode_string(&res_buf, cluster->cluster_name == NULL ? "null" : cluster->cluster_name);
-    ei_x_encode_atom(&res_buf, "user");
-    ei_x_encode_string(&res_buf, cluster->user == NULL ? "null" : cluster->user);
-    ei_x_encode_atom(&res_buf, "password");
-    ei_x_encode_string(&res_buf, cluster->password == NULL ? "null" : cluster->password);
-    ei_x_encode_atom(&res_buf, "nodes_number");
+    ei_x_encode_string(&res_buf, "cluster_name");
+    ei_x_encode_string(&res_buf, cluster->cluster_name == NULL ? "" : cluster->cluster_name);
+    ei_x_encode_string(&res_buf, "user");
+    ei_x_encode_string(&res_buf, cluster->user == NULL ? "" : cluster->user);
+    ei_x_encode_string(&res_buf, "password");
+    ei_x_encode_string(&res_buf, cluster->password == NULL ? "" : cluster->password);
+    ei_x_encode_string(&res_buf, "nodes_number");
     ei_x_encode_long(&res_buf, cluster->nodes == NULL ? 0 : cluster->nodes->size);
-    ei_x_encode_atom(&res_buf, "random_node_index");
+    ei_x_encode_string(&res_buf, "random_node_index");
     ei_x_encode_long(&res_buf, cluster->node_index);
-    ei_x_encode_atom(&res_buf, "n_partitions");
+    ei_x_encode_string(&res_buf, "n_partitions");
     ei_x_encode_long(&res_buf, cluster->n_partitions);
 
     end:
@@ -358,9 +358,9 @@ int call_port_status(const char *buf, int *index, int arity, int fd_out) {
     OK0
 
     ei_x_encode_map_header(&res_buf, 2);
-    ei_x_encode_atom(&res_buf, "is_aerospike_initialised");
+    ei_x_encode_string(&res_buf, "is_aerospike_initialised");
     ei_x_encode_boolean(&res_buf, is_aerospike_initialised);
-    ei_x_encode_atom(&res_buf, "is_connected");
+    ei_x_encode_string(&res_buf, "is_connected");
     ei_x_encode_boolean(&res_buf, is_connected);
 
     POST
@@ -788,7 +788,7 @@ int call_host_info(const char *buf, int *index, int arity, int fd_out) {
     ei_x_encode_string(&res_buf, &info[0]);
     ei_x_encode_empty_list(&res_buf);
     free(&info[0]);
-    
+
 
     end:
     POST
