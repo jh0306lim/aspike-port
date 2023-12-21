@@ -9,7 +9,7 @@ tst(Mod, Fn, Args) ->
 
 tst(Mod, Fn, N, R) ->
     Args = Mod:mk_args(Fn, N),
-    io:format("~p:~p, N=~p, R=~p, Time=~p~n",[Mod, Fn, N, R, lists:sum([tst(Mod, Fn, Args) || _ <- lists:seq(1, R)])/R]).
+    io:format("~p:~p, N=~p, R=~p, Time=~p(msec)~n",[Mod, Fn, N, R, lists:sum([tst(Mod, Fn, Args) || _ <- lists:seq(1, R)])/R]).
 
 t(Mod, Fn, Args, R) when is_list(Mod)->
     [t(M, Fn, Args, R) || M <- Mod],

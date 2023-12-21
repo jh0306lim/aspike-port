@@ -19,4 +19,5 @@ _checkouts/
 priv/
 rebar.lock
 .vscode/
+tmp/
 
