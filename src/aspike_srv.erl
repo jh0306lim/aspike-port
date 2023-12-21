@@ -1,5 +1,4 @@
 % -------------------------------------------------------------------------------
-% -------------------------------------------------------------------------------
 
 -module(aspike_srv).
 
@@ -7,7 +6,8 @@
 
 % -------------------------------------------------------------------------------
 
--define(EXT_PROC_NAME, "aspike_port").
+-define(LIBNAME, aspike_port).
+
 -define(DEFAULT_TIMEOUT, 10000).
 -define(DEFAULT_HOST, "127.0.0.1").
 -define(DEFAULT_PORT, 3010).
@@ -50,8 +50,8 @@
     connect/2,
     config_info/0,
     cluster_info/0,
-    destination_add/0,
-    destination_add/2,
+    host_add/0,
+    host_add/2,
     key_put/0,
     key_put/2,
     key_put/5,
@@ -88,7 +88,7 @@
 
 -spec b() -> ok.
 b() ->
-    destination_add(),
+    host_add(),
     connect(),
     ok.
 
@@ -98,19 +98,11 @@ mk_args(_, _) -> [].
 
 -ifdef(TEST).
 start() ->
-    start(code:priv_dir(aspike_port), ?EXT_PROC_NAME).
-start(Dir, Prg) ->
-    start(Dir ++ "/" ++ Prg).
-start(ExtPrg) ->
-    gen_server:start({local, ?MODULE}, ?MODULE, ExtPrg, []).
+    gen_server:start({local, ?MODULE}, ?MODULE, utils:find_lib(?LIBNAME), []).
 -endif.
 
 start_link() ->
-    start_link(code:priv_dir(aspike_port), ?EXT_PROC_NAME).
-start_link(Dir, Prg) ->
-    start_link(Dir ++ "/" ++ Prg).
-start_link(ExtPrg) ->
-    gen_server:start_link({local, ?MODULE}, ?MODULE, ExtPrg, []).
+    gen_server:start_link({local, ?MODULE}, ?MODULE, utils:find_lib(?LIBNAME), []).
 
 -spec command(term()) -> term().
 command(Cmd) -> 
@@ -120,13 +112,13 @@ command(Cmd) ->
 aerospike_init() ->
     command({aerospike_init}).
 
--spec destination_add() -> {ok, string()} | {error, string()}.
-destination_add() ->
-    destination_add(?DEFAULT_HOST, ?DEFAULT_PORT).
+-spec host_add() -> {ok, string()} | {error, string()}.
+host_add() ->
+    host_add(?DEFAULT_HOST, ?DEFAULT_PORT).
 
--spec destination_add(string(), non_neg_integer()) -> {ok, integer()} | {error, term()}.
-destination_add(Host, Port) when is_list(Host); is_integer(Port) -> 
-    command({destination_add, Host, Port}).
+-spec host_add(string(), non_neg_integer()) -> {ok, string()} | {error, string()}.
+host_add(Host, Port) when is_list(Host); is_integer(Port) -> 
+    command({host_add, Host, Port}).
 
 -spec connect() -> {ok, string()} | {error, string()}.
 connect() ->
@@ -189,7 +181,7 @@ node_get(NodeName) ->
 
 -spec node_info(string(), string()) -> {ok, [string()]} | {error, term()}.
 node_info(NodeName, Item) ->
-    info_render(command({node_info, NodeName, Item}), Item).
+    as_render:info_render(command({node_info, NodeName, Item}), Item).
 
 -spec host_info(string()) -> {ok, [string()]} | {error, string()}.
 host_info(Item) ->
@@ -197,7 +189,7 @@ host_info(Item) ->
 
 -spec host_info(string(), non_neg_integer(), string()) -> {ok, [string()]} | {error, term()}.
 host_info(HostName, Port, Item) ->
-    info_render(command({host_info, HostName, Port, Item}), Item).
+    as_render:info_render(command({host_info, HostName, Port, Item}), Item).
 
 
 -spec port_status() -> {ok, map()} | {error, term()}.
@@ -211,7 +203,7 @@ help() -> help("namespaces").
 % {ok, string()} | {error, term()}.
 -spec help(string()) -> {ok, string()} | {error, term()}.
 help(Item) ->
-    info_render(command({help, Item}), Item).
+    as_render:info_render(command({help, Item}), Item).
 
 -spec port_info() -> [tuple()]| undefined.
 port_info() ->
@@ -273,76 +265,6 @@ call_port(Caller, Port, Msg) ->
         after ?DEFAULT_TIMEOUT -> {error, timeout_is_out}
     end.
 
-
-info_render(Res = {error, _}, _) -> 
-    Res;
-info_render({ok, Info}, Item) -> 
-    [F | Tail] = string:split(string:chomp(Info), "\t", all),
-    Res = case Item of
-        "sets" -> sets_render(Tail);
-        "bins" -> bins_render(Tail);
-        "sindex-list:" -> sindexes_render(Tail);
-        % "get-config" -> config_render(Tail);
-        _ -> case re:run(Item, "get-config") of
-                {match, _} -> config_render(Tail);
-                _ -> Tail
-        end
-    end,
-    {ok, {F, Res}}.
-
-sets_render(Sets) ->
-    set_render([string:split(S, ";", all) || S <- Sets]).
-
-set_render([]) -> 
-    [];
-set_render([R | Tail]) -> 
-    X = [string:split(I, ":", all)  || I <- R],
-    Y = [[list_to_tuple(string:split(I, "=", leading)) || I <- L] || L <- X],
-    Z = [maps:from_list([{A, value_render(B)} || {A, B} <- [T || T <- L, size(T) == 2]]) || L <- Y],
-    [Z | set_render(Tail)].
-
-bins_render(Bins) ->
-    bin_render([string:split(B, ",", all) || B <- Bins]).
-
-bin_render([]) ->    
-    [];
-bin_render([[A, B| Bins ]  | Tail]) ->
-    [A1, A2] = string:split(A, "="),
-    [A11, A12] = string:split(A1, ":"),
-    [B1, B2] = string:split(B, "="),
-    [maps:from_list([{"ns", A11}, {A12, value_render(A2)}, {B1, value_render(B2)}, {"names", Bins}]) | bin_render(Tail)].
-
-sindexes_render(Indexes) ->
-    sindex_render([string:split(Ind, ":", all) || Ind <- Indexes]).
-
-sindex_render([]) -> 
-    [];
-sindex_render([F | Tail]) -> 
-    X = [string:split(E, "=", leading) || E <- F],
-    Y = [list_to_tuple(S) || S <- X, length(S) == 2],
-    Z = maps:from_list([{A, value_render(B)} || {A, B} <- Y]),
-    [Z | sindex_render(Tail)].
-
-config_render(Conf) ->
-    X = string:split(Conf, ";", all),
-    Y = [L || L <- [string:split(S, "=", leading) || S <- X], length(L) == 2],
-    maps:from_list([{A, value_render(B)} || [A, B] <- Y]).
-
--spec value_render(string()) -> false | true | integer() | float() | string().
-value_render("false") -> false;
-value_render("true") -> true;
-value_render("null") -> null;
-value_render(V) -> 
-    case string:to_integer(V) of
-        {N, []} -> N;
-        _ -> 
-            case string:to_float(V) of
-                {F, []} -> F;
-                _ -> V
-            end
-    end.
-
-
 % -------------------------------------------------------------------------------
     % aql -h 127.0.0.1:3010
     % asadm -e info
@@ -351,7 +273,7 @@ value_render(V) ->
     % 
     % make EVENT_LIB=libev
 % -------------------------------------------------------------------------------
-% 5> aspike_srv:destination_add().
+% 5> aspike_srv:host_add().
 % {ok,"host and port added"}
 % 6> aspike_srv:connect().
 % {ok,"connected"}

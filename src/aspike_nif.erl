@@ -2,8 +2,8 @@
 
 -export([
     as_init/0,
-    add_hosts/0,
-    add_hosts/2,
+    host_add/0,
+    host_add/2,
     connect/0,
     connect/2,
     key_put/0,
@@ -17,7 +17,7 @@
 
 -nifs([
     as_init/0,
-    add_hosts/2,
+    host_add/2,
     connect/2,
     key_put/5,
     % --------------------------------------
@@ -26,23 +26,10 @@
 
 -on_load(init/0).
 
--define(APPNAME, aspike_port).
--define(LIBNAME, aspike_nif).
+-define(LIBNAME, ?MODULE).
 
 init() ->
-    SoName =
-        case code:priv_dir(?APPNAME) of
-            {error, bad_name} ->
-                case filelib:is_dir(filename:join(["..", priv])) of
-                    true ->
-                        filename:join(["..", priv, ?LIBNAME]);
-                    _ ->
-                        filename:join([priv, ?LIBNAME])
-                end;
-            Dir ->
-                filename:join(Dir, ?LIBNAME)
-        end,
-    erlang:load_nif(SoName, 0).
+    erlang:load_nif(utils:find_lib(?LIBNAME), 0).
 
 not_loaded(Line) ->
     erlang:nif_error({not_loaded, [{module, ?MODULE}, {line, Line}]}).
@@ -50,9 +37,11 @@ not_loaded(Line) ->
 as_init() ->
     not_loaded(?LINE).
 
-add_hosts() ->
-    add_hosts("127.0.0.1", 3010).
-add_hosts(_, _) ->
+-spec host_add() -> {ok, string()} | {error, string()}.
+host_add() ->
+    host_add("127.0.0.1", 3010).
+-spec host_add(string(), non_neg_integer()) -> {ok, string()} | {error, string()}.
+host_add(_, _) ->
     not_loaded(?LINE).
 
 connect() ->
@@ -69,7 +58,7 @@ key_put(_, _, _, _, _) ->
 
 b() ->
     as_init(),
-    add_hosts(),
+    host_add(),
     connect().
 
 % @doc Used in ${tsl.erl} to create argument list for testin function

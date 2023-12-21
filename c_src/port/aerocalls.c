@@ -193,7 +193,7 @@ int function_call(const char *buf, int *index, int arity, int fd_out) {
     if (check_name(fname, "aerospike_init", arity, 1)) {
         return call_aerospike_init(buf, index, arity, fd_out);
     }
-    if (check_name(fname, "destination_add", arity, 3)) {
+    if (check_name(fname, "host_add", arity, 3)) {
         return call_config_add_hosts(buf, index, arity, fd_out);
     }
     if (check_name(fname, "connect", arity, 3)) {

@@ -42,7 +42,7 @@ static ERL_NIF_TERM as_init(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[])
     return enif_make_tuple2(env, rc, msg);
 }
 
-static ERL_NIF_TERM add_hosts(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[])
+static ERL_NIF_TERM host_add(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[])
 {
     char host[MAX_HOST_SIZE];
     int port;
@@ -169,7 +169,7 @@ static ERL_NIF_TERM bar_nif(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[])
 
 static ErlNifFunc nif_funcs[] = {
     {"as_init", 0, as_init},
-    {"add_hosts", 2, add_hosts},
+    {"host_add", 2, host_add},
     {"connect", 2, connect},
     {"key_put", 5, key_put},
     // ----------------------------------------------------

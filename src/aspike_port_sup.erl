@@ -38,8 +38,7 @@ init([]) ->
     	intensity => 1,
         period    => 1
         },
-    % ChildSpecs = [Aspike],
-    ChildSpecs = [],
+    ChildSpecs = [Aspike],
     {ok, {SupFlags, ChildSpecs}}.
 
 %% internal functions
