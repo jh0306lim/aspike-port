@@ -3,7 +3,13 @@
 #include <stdio.h>
 #include <unistd.h>
 
+
 typedef char byte;
+
+int read_exact(byte *buf, int len, int fd);
+int write_exact(byte *buf, int len, int fd);
+int read_cmd(byte *buf, int fd);
+int write_cmd(byte *buf, int len, int fd);
 
 int read_exact(byte *buf, int len, int fd)
 {

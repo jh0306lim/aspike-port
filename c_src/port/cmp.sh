@@ -18,7 +18,7 @@ CC_FLAGS="-std=gnu99 -g -Wall -fPIC -O3 -fno-common -fno-strict-aliasing -D_FILE
 
 LD_FLAGS="-L$ERL_INTERFACE_LIB_DIR -lei -L/usr/local/lib -L/usr/local/opt/openssl/lib -lev -lssl -lcrypto  -lpthread -lm -lz  -lm -lz $AERO_BASE/target/Darwin-x86_64/lib/libaerospike.a"
 
-S="gcc $CC_FLAGS -o ../priv/aspike_port $CFILES $INCLUDES  $LD_FLAGS"
+S="gcc $CC_FLAGS -o ../../priv/aspike_port $CFILES $INCLUDES  $LD_FLAGS"
 echo $S
 eval $S  
 

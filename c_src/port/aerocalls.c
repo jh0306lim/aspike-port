@@ -165,21 +165,21 @@ int note(const char *msg, int fd_out) {
     POST
 }
 
-void res_buf_free(ei_x_buff  *res_buf, int fd_out) {
-    if (res_buf != 0 && res_buf->buff != 0 && strncmp(res_buf->buff, "", 1) != 0) { 
-        if (ei_x_free(res_buf) != 0) {
-            ifail(7, fd_out);
-            exit(1);
-        }
-    }
-}
+// static void res_buf_free(ei_x_buff  *res_buf, int fd_out) {
+//     if (res_buf != 0 && res_buf->buff != 0 && strncmp(res_buf->buff, "", 1) != 0) { 
+//         if (ei_x_free(res_buf) != 0) {
+//             ifail(7, fd_out);
+//             exit(1);
+//         }
+//     }
+// }
 
 int is_function_call(const char *buf, int *index, int *arity) {
     int res = ei_decode_tuple_header(buf, index, arity) == 0 && arity > 0;
     return res;
 }
 
-int check_name(const char *fname, const char *pattern, int arity, int nargs) {
+static int check_name(const char *fname, const char *pattern, int arity, int nargs) {
     return (strncmp(fname, pattern, strlen(pattern)) == 0 && arity == nargs);
 }
 
@@ -535,13 +535,13 @@ int call_key_remove(const char *buf, int *index, int arity, int fd_out) {
     POST
 }
 
-void dump_bin(ei_x_buff *p_res_buf, const as_bin* p_bin) {
+static void dump_bin(ei_x_buff *p_res_buf, const as_bin* p_bin) {
     char* val_as_str = as_val_tostring(as_bin_get_value(p_bin));
     ei_x_encode_string(p_res_buf, val_as_str);
 	free(val_as_str);
 }
 
-int dump_recorsd(ei_x_buff *p_res_buf, const as_record *p_rec) {
+static int dump_recorsd(ei_x_buff *p_res_buf, const as_record *p_rec) {
     int res = 1;
     if (p_rec == NULL) {
         ERRORP("NULL p_rec - internal error")

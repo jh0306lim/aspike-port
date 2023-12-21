@@ -12,6 +12,8 @@ int ifail(int ind, int fd);
 int foo(int x);
 int bar(int y);
 
+int call_foo(const char *buf, int *index, int arity, int fd_out);
+int call_bar(const char *buf, int *index, int arity, int fd_out);
 
 int call_foo(const char *buf, int *index, int arity, int fd_out) {
     long arg = 0;

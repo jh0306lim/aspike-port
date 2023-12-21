@@ -1,4 +1,4 @@
-/* complex.c */
+/* complex.cpp */
 
 int foo(int x) {
   return x+1;
