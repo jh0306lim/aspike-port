@@ -541,7 +541,7 @@ static void dump_bin(ei_x_buff *p_res_buf, const as_bin* p_bin) {
 	free(val_as_str);
 }
 
-static int dump_recorsd(ei_x_buff *p_res_buf, const as_record *p_rec) {
+static int dump_records(ei_x_buff *p_res_buf, const as_record *p_rec) {
     int res = 1;
     if (p_rec == NULL) {
         ERRORP("NULL p_rec - internal error")
@@ -602,16 +602,15 @@ int call_key_get(const char *buf, int *index, int arity, int fd_out) {
 
     as_key key;
 	as_key_init_str(&key, namespace, set, key_str);
-
 	as_error err;
 
-    // Write the record to the database.
+    // Get the record from the database.
 	if (aerospike_key_get(&as, &err, NULL, &key, &p_rec) != AEROSPIKE_OK) {
         ERROR(err.message)
         goto end;
 	}
 
-    res = dump_recorsd(&res_buf, p_rec);
+    res = dump_records(&res_buf, p_rec);
 
     end:
     if (p_rec != NULL) {
@@ -679,6 +678,8 @@ int call_node_info(const char *buf, int *index, int arity, int fd_out) {
     PRE
     char node_name[AS_NODE_NAME_MAX_SIZE];
     char item[1024];
+    as_node* node = NULL;
+
     if (ei_decode_string(buf, index, node_name) != 0) {
         ERROR("invalid first argument: node_name")
         goto end;
@@ -690,7 +691,7 @@ int call_node_info(const char *buf, int *index, int arity, int fd_out) {
     CHECK_ALL
 
 	as_cluster* cluster = as.cluster;
-    as_node* node = as_node_get_by_name(cluster, node_name);
+    node = as_node_get_by_name(cluster, node_name);
     if (! node) {
         ERROR("Failed to find server node.");
         goto end;
@@ -704,12 +705,11 @@ int call_node_info(const char *buf, int *index, int arity, int fd_out) {
 
     status = as_info_command_node(&err, node, (char*)item, policy->send_as_is, deadline, &info);
     if (status != AEROSPIKE_OK) {
-        as_node_release(node);
         ERROR(err.in_doubt == true ? "unknown error" : err.message)
         goto end;
     }
 
-    if(info == NULL){
+    if (info == NULL) {
         ERROR("no data")
         goto end;
     }
@@ -718,10 +718,10 @@ int call_node_info(const char *buf, int *index, int arity, int fd_out) {
     ei_x_encode_list_header(&res_buf, 1);
     ei_x_encode_string(&res_buf, &info[0]);
     ei_x_encode_empty_list(&res_buf);
-    as_node_release(node);
     free(info);
 
     end:
+    as_node_release(node);
     POST
 }
 

@@ -71,9 +71,10 @@
     port_info/0,
     help/0,
     help/1,
-% ------
+    % ------
     bar/1,
-    foo/1]).
+    foo/1
+]).
 
 -record(state, {
     ext_prg :: string(),
@@ -105,7 +106,7 @@ start_link() ->
     gen_server:start_link({local, ?MODULE}, ?MODULE, utils:find_lib(?LIBNAME), []).
 
 -spec command(term()) -> term().
-command(Cmd) -> 
+command(Cmd) ->
     gen_server:call(?MODULE, {command, Cmd}, ?DEFAULT_TIMEOUT + 10).
 
 -spec aerospike_init() -> {ok, string()} | {error, string()}.
@@ -117,7 +118,7 @@ host_add() ->
     host_add(?DEFAULT_HOST, ?DEFAULT_PORT).
 
 -spec host_add(string(), non_neg_integer()) -> {ok, string()} | {error, string()}.
-host_add(Host, Port) when is_list(Host); is_integer(Port) -> 
+host_add(Host, Port) when is_list(Host); is_integer(Port) ->
     command({host_add, Host, Port}).
 
 -spec connect() -> {ok, string()} | {error, string()}.
@@ -125,7 +126,7 @@ connect() ->
     connect("", "").
 
 -spec connect(string(), string()) -> {ok, string()} | {error, string()}.
-connect(User, Pwd) when is_list(User); is_list(Pwd) -> 
+connect(User, Pwd) when is_list(User); is_list(Pwd) ->
     command({connect, User, Pwd}).
 
 key_put() ->
@@ -133,9 +134,12 @@ key_put() ->
 
 key_put(Bin, N) ->
     key_put(Bin, N, "test", "erl-set", "erl-key").
-    
--spec key_put(string(), integer(), string(), string(), string()) -> {ok, string()} | {error, string()}.
-key_put(Bin, N, Namespace, Set, KeyStr) when is_list(Bin); is_integer(N); is_list(Namespace); is_list(Set); is_list(KeyStr) -> 
+
+-spec key_put(string(), integer(), string(), string(), string()) ->
+    {ok, string()} | {error, string()}.
+key_put(Bin, N, Namespace, Set, KeyStr) when
+    is_list(Bin); is_integer(N); is_list(Namespace); is_list(Set); is_list(KeyStr)
+->
     command({key_put, Bin, N, Namespace, Set, KeyStr}).
 
 key_remove() ->
@@ -143,9 +147,11 @@ key_remove() ->
 
 key_remove(Bin) ->
     key_remove(Bin, "test", "erl-set", "erl-key").
-    
+
 -spec key_remove(string(), string(), string(), string()) -> {ok, string()} | {error, string()}.
-key_remove(Bin, Namespace, Set, KeyStr) when is_list(Bin); is_list(Namespace); is_list(Set); is_list(KeyStr) -> 
+key_remove(Bin, Namespace, Set, KeyStr) when
+    is_list(Bin); is_list(Namespace); is_list(Set); is_list(KeyStr)
+->
     command({key_remove, Bin, Namespace, Set, KeyStr}).
 
 key_get() ->
@@ -153,11 +159,12 @@ key_get() ->
 
 key_get(Bin) ->
     key_get(Bin, "test", "erl-set", "erl-key").
-    
+
 -spec key_get(string(), string(), string(), string()) -> {ok, string()} | {error, string()}.
-key_get(Bin, Namespace, Set, KeyStr) when is_list(Bin); is_list(Namespace); is_list(Set); is_list(KeyStr) -> 
+key_get(Bin, Namespace, Set, KeyStr) when
+    is_list(Bin); is_list(Namespace); is_list(Set); is_list(KeyStr)
+->
     command({key_get, Bin, Namespace, Set, KeyStr}).
-    
 
 -spec config_info() -> {ok, map()} | {error, term()}.
 config_info() ->
@@ -191,7 +198,6 @@ host_info(Item) ->
 host_info(HostName, Port, Item) ->
     as_render:info_render(command({host_info, HostName, Port, Item}), Item).
 
-
 -spec port_status() -> {ok, map()} | {error, term()}.
 port_status() ->
     command({port_status}).
@@ -199,23 +205,23 @@ port_status() ->
 -spec help() -> {ok, string()} | {error, term()}.
 help() -> help("namespaces").
 
-% -spec help("bins" | "sets" | "node" | "namespaces" | "udf-list" | "sindex-list:" | "edition" | "get-config:context=namespace;id=test", "get-config") -> 
+% -spec help("bins" | "sets" | "node" | "namespaces" | "udf-list" | "sindex-list:" | "edition" | "get-config:context=namespace;id=test", "get-config") ->
 % {ok, string()} | {error, term()}.
 -spec help(string()) -> {ok, string()} | {error, term()}.
 help(Item) ->
     as_render:info_render(command({help, Item}), Item).
 
--spec port_info() -> [tuple()]| undefined.
+-spec port_info() -> [tuple()] | undefined.
 port_info() ->
     gen_server:call(?MODULE, port_info).
 
 -spec foo(integer()) -> {ok, integer()} | {error, term()}.
-foo(X) when is_integer(X) -> 
+foo(X) when is_integer(X) ->
     command({foo, X}).
 
 -spec bar(integer()) -> {ok, integer()} | {error, term()}.
-% bar(X) when is_integer(X) -> 
-bar(X) -> 
+% bar(X) when is_integer(X) ->
+bar(X) ->
     command({bar, X}).
 
 % -------------------------------------------------------------------------------
@@ -228,27 +234,26 @@ init(ExtPrg) ->
     Port = open_port({spawn_executable, ExtPrg}, [{packet, 2}, binary, nouse_stdio]),
     spawn(fun aerospike_init/0),
     {ok, #state{ext_prg = ExtPrg, port = Port}}.
-    
-handle_call({command, Msg}, {Caller, _}, State=#state{port = Port}) ->
+
+handle_call({command, Msg}, {Caller, _}, State = #state{port = Port}) ->
     Res = call_port(Caller, Port, Msg),
     {reply, Res, State};
-handle_call(port_info, _, State=#state{port = Port}) ->
+handle_call(port_info, _, State = #state{port = Port}) ->
     Res = erlang:port_info(Port),
     {reply, Res, State};
 handle_call(Msg, _From, State) ->
-    io:format("~p:~p Msg = ~p~n",[?MODULE, ?FUNCTION_NAME, Msg]),
+    io:format("~p:~p Msg = ~p~n", [?MODULE, ?FUNCTION_NAME, Msg]),
     {noreply, State}.
 
-handle_cast({command, Msg}, State=#state{port = Port}) ->
+handle_cast({command, Msg}, State = #state{port = Port}) ->
     Port ! {self(), {command, term_to_binary(Msg)}},
     {noreply, State};
-
 handle_cast(Msg, State) ->
-    io:format("~p:~p Msg = ~p~n",[?MODULE, ?FUNCTION_NAME, Msg]),
+    io:format("~p:~p Msg = ~p~n", [?MODULE, ?FUNCTION_NAME, Msg]),
     {noreply, State}.
 
 handle_info(Msg, State) ->
-    io:format("~p:~p Msg = ~p~n",[?MODULE, ?FUNCTION_NAME, Msg]),
+    io:format("~p:~p Msg = ~p~n", [?MODULE, ?FUNCTION_NAME, Msg]),
     {noreply, State}.
 
 terminate(_Reason, _State) ->
@@ -257,12 +262,12 @@ terminate(_Reason, _State) ->
 % -------------------------------------------------------------------------------
 % helpers
 % -------------------------------------------------------------------------------
--spec call_port(pid(), pid(), term()) ->  {ok, term()} | {error, timeout}.
+-spec call_port(pid(), pid(), term()) -> {ok, term()} | {error, timeout}.
 call_port(Caller, Port, Msg) ->
     Port ! {self(), {command, term_to_binary(Msg)}},
     receive
         {_Port, {data, Data}} -> Caller ! binary_to_term(Data)
-        after ?DEFAULT_TIMEOUT -> {error, timeout_is_out}
+    after ?DEFAULT_TIMEOUT -> {error, timeout_is_out}
     end.
 
 % -------------------------------------------------------------------------------
