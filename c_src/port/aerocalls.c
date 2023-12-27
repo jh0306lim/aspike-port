@@ -122,6 +122,7 @@ int call_port_status(const char *buf, int *index, int arity, int fd_out);
 int call_key_put(const char *buf, int *index, int arity, int fd_out);
 int call_key_remove(const char *buf, int *index, int arity, int fd_out);
 int call_key_get(const char *buf, int *index, int arity, int fd_out);
+int call_key_generation(const char *buf, int *index, int arity, int fd_out);
 
 int call_node_random(const char *buf, int *index, int arity, int fd_out);
 int call_node_names(const char *buf, int *index, int arity, int fd_out);
@@ -202,11 +203,14 @@ int function_call(const char *buf, int *index, int arity, int fd_out) {
     if (check_name(fname, "key_put", arity, 6)) {
         return call_key_put(buf, index, arity, fd_out);
     }
-    if (check_name(fname, "key_remove", arity, 5)) {
+    if (check_name(fname, "key_remove", arity, 4)) {
         return call_key_remove(buf, index, arity, fd_out);
     }
-    if (check_name(fname, "key_get", arity, 5)) {
+    if (check_name(fname, "key_get", arity, 4)) {
         return call_key_get(buf, index, arity, fd_out);
+    }
+    if (check_name(fname, "key_generation", arity, 4)) {
+        return call_key_generation(buf, index, arity, fd_out);
     }
     if (check_name(fname, "node_random", arity, 1)) {
         return call_node_random(buf, index, arity, fd_out);
@@ -494,25 +498,20 @@ int call_key_put(const char *buf, int *index, int arity, int fd_out) {
 int call_key_remove(const char *buf, int *index, int arity, int fd_out) {
     PRE
 
-    char bin[AS_BIN_NAME_MAX_SIZE];
     char namespace[MAX_NAMESPACE_SIZE];
     char set[MAX_SET_SIZE];
     char key_str[MAX_KEY_STR_SIZE];
 
-    if (ei_decode_string(buf, index, bin) != 0) {
-        ERROR("invalid first argument: bin")
-        goto end;
-    }
     if (ei_decode_string(buf, index, namespace) != 0) {
-        ERROR("invalid second argument: namespace")
+        ERROR("invalid first argument: namespace")
         goto end;
     } 
     if (ei_decode_string(buf, index, set) != 0) {
-        ERROR("invalid third argument: set")
+        ERROR("invalid second argument: set")
         goto end;
     } 
     if (ei_decode_string(buf, index, key_str) != 0) {
-        ERROR("invalid forth argument: key_str")
+        ERROR("invalid third argument: key_str")
         goto end;
     } 
 
@@ -575,26 +574,21 @@ static int dump_records(ei_x_buff *p_res_buf, const as_record *p_rec) {
 int call_key_get(const char *buf, int *index, int arity, int fd_out) {
     PRE
 
-    char bin[AS_BIN_NAME_MAX_SIZE];
     char namespace[MAX_NAMESPACE_SIZE];
     char set[MAX_SET_SIZE];
     char key_str[MAX_KEY_STR_SIZE];
     as_record* p_rec = NULL;    
 
-    if (ei_decode_string(buf, index, bin) != 0) {
-        ERROR("invalid first argument: bin")
-        goto end;
-    }
     if (ei_decode_string(buf, index, namespace) != 0) {
-        ERROR("invalid second argument: namespace")
+        ERROR("invalid first argument: namespace")
         goto end;
     } 
     if (ei_decode_string(buf, index, set) != 0) {
-        ERROR("invalid third argument: set")
+        ERROR("invalid second argument: set")
         goto end;
     } 
     if (ei_decode_string(buf, index, key_str) != 0) {
-        ERROR("invalid forth argument: key_str")
+        ERROR("invalid third argument: key_str")
         goto end;
     } 
 
@@ -611,6 +605,54 @@ int call_key_get(const char *buf, int *index, int arity, int fd_out) {
 	}
 
     res = dump_records(&res_buf, p_rec);
+
+    end:
+    if (p_rec != NULL) {
+        as_record_destroy(p_rec);
+    }
+
+    POST
+}
+
+int call_key_generation(const char *buf, int *index, int arity, int fd_out) {
+    PRE
+
+    char namespace[MAX_NAMESPACE_SIZE];
+    char set[MAX_SET_SIZE];
+    char key_str[MAX_KEY_STR_SIZE];
+    as_record* p_rec = NULL;    
+
+    if (ei_decode_string(buf, index, namespace) != 0) {
+        ERROR("invalid first argument: namespace")
+        goto end;
+    } 
+    if (ei_decode_string(buf, index, set) != 0) {
+        ERROR("invalid second argument: set")
+        goto end;
+    } 
+    if (ei_decode_string(buf, index, key_str) != 0) {
+        ERROR("invalid third argument: key_str")
+        goto end;
+    } 
+
+    CHECK_ALL
+
+    as_key key;
+	as_key_init_str(&key, namespace, set, key_str);
+	as_error err;
+
+    // Get the record from the database.
+	if (aerospike_key_get(&as, &err, NULL, &key, &p_rec) != AEROSPIKE_OK) {
+        ERROR(err.message)
+        goto end;
+	}
+
+    OK0
+    ei_x_encode_map_header(&res_buf, 2);
+    ei_x_encode_string(&res_buf, "gen");
+    ei_x_encode_ulong(&res_buf, p_rec->gen);
+    ei_x_encode_string(&res_buf, "ttl");
+    ei_x_encode_ulong(&res_buf, p_rec->ttl);
 
     end:
     if (p_rec != NULL) {
@@ -794,7 +836,6 @@ int call_host_info(const char *buf, int *index, int arity, int fd_out) {
     POST
 }
 
-
 int call_help(const char *buf, int *index, int arity, int fd_out) {
     PRE
     char item[1024];
@@ -826,73 +867,3 @@ int call_help(const char *buf, int *index, int arity, int fd_out) {
     end:
     POST
 }
-
-
-
-// int call_scan(const char *buf, int *index, int arity, int fd_out) {
-//     PRE
-//     char namespace[MAX_NAMESPACE_SIZE];
-//     char set[MAX_SET_SIZE];
-
-//     if (ei_decode_string(buf, index, namespace) != 0) {
-//         ERROR("invalid first argument: namespace")
-//         goto end;
-//     } 
-//     if (ei_decode_string(buf, index, set) != 0) {
-//         ERROR("invalid second argument: set")
-//         goto end;
-//     } 
-
-//     CHECK_ALL
-// 	// Specify the namespace and set to use during the scan.
-// 	as_scan scan;
-// 	as_scan_init(&scan, namespace, set);
-//     as_error err;
-
-// 	if (aerospike_scan_foreach(&as, &err, NULL, &scan, scan_cb, NULL) != AEROSPIKE_OK) {
-//         ERROR(err.msg)
-// 		as_scan_destroy(&scan);
-// 		goto end;
-// 	}
-   
-//     end:
-//     POST
-// }
-
-// int call_scan_bin(const char *buf, int *index, int arity, int fd_out) {
-//     PRE
-//     char bin[AS_BIN_NAME_MAX_SIZE];
-//     char namespace[MAX_NAMESPACE_SIZE];
-//     char set[MAX_SET_SIZE];
-
-//     if (ei_decode_string(buf, index, bin) != 0) {
-//         ERROR("invalid first argument: bin")
-//         goto end;
-//     }
-//     if (ei_decode_string(buf, index, namespace) != 0) {
-//         ERROR("invalid second argument: namespace")
-//         goto end;
-//     } 
-//     if (ei_decode_string(buf, index, set) != 0) {
-//         ERROR("invalid third argument: set")
-//         goto end;
-//     } 
-
-//     CHECK_ALL
-// 	// Specify the namespace and set to use during the scan.
-// 	as_scan scan;
-// 	as_scan_init(&scan, namespace, set);
-//     as_error err;
-   
-// 	as_scan_select_inita(&scan, 1);
-// 	as_scan_select(&scan, bin);
-
-// 	if (aerospike_scan_foreach(&as, &err, NULL, &scan, scan_cb, NULL) != AEROSPIKE_OK) {
-//         ERROR(err.msg)
-// 		as_scan_destroy(&scan);
-// 		goto end;
-// 	}
-
-//     end:
-//     POST
-// }

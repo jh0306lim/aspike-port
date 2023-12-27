@@ -55,10 +55,13 @@
     key_put/5,
     key_remove/0,
     key_remove/1,
-    key_remove/4,
+    key_remove/3,
     key_get/0,
     key_get/1,
-    key_get/4,
+    key_get/3,
+    key_generation/0,
+    key_generation/1,
+    key_generation/3,
     node_random/0,
     node_names/0,
     node_get/1,
@@ -141,28 +144,40 @@ key_put(Bin, N, Namespace, Set, KeyStr) when
     command({key_put, Bin, N, Namespace, Set, KeyStr}).
 
 key_remove() ->
-    key_remove("erl-bin-111").
+    key_remove("erl-key").
 
-key_remove(Bin) ->
-    key_remove(Bin, "test", "erl-set", "erl-key").
+key_remove(Key) ->
+    key_remove("test", "erl-set", Key).
 
--spec key_remove(string(), string(), string(), string()) -> {ok, string()} | {error, string()}.
-key_remove(Bin, Namespace, Set, KeyStr) when
-    is_list(Bin); is_list(Namespace); is_list(Set); is_list(KeyStr)
+-spec key_remove(string(), string(), string()) -> {ok, string()} | {error, string()}.
+key_remove(Namespace, Set, KeyStr) when
+    is_list(Namespace); is_list(Set); is_list(KeyStr)
 ->
-    command({key_remove, Bin, Namespace, Set, KeyStr}).
+    command({key_remove, Namespace, Set, KeyStr}).
 
 key_get() ->
-    key_get("erl-bin-111").
+    key_get("erl-key").
 
-key_get(Bin) ->
-    key_get(Bin, "test", "erl-set", "erl-key").
+key_get(Key) ->
+    key_get("test", "erl-set", Key).
 
--spec key_get(string(), string(), string(), string()) -> {ok, string()} | {error, string()}.
-key_get(Bin, Namespace, Set, KeyStr) when
-    is_list(Bin); is_list(Namespace); is_list(Set); is_list(KeyStr)
+-spec key_get(string(), string(), string()) -> {ok, string()} | {error, string()}.
+key_get(Namespace, Set, KeyStr) when
+    is_list(Namespace); is_list(Set); is_list(KeyStr)
 ->
-    command({key_get, Bin, Namespace, Set, KeyStr}).
+    command({key_get, Namespace, Set, KeyStr}).
+
+key_generation() ->
+    key_generation("erl-key").
+
+key_generation(Key) ->
+    key_generation("test", "erl-set", Key).
+
+-spec key_generation(string(), string(), string()) -> {ok, string()} | {error, string()}.
+key_generation(Namespace, Set, KeyStr) when
+    is_list(Namespace); is_list(Set); is_list(KeyStr)
+->
+    command({key_generation, Namespace, Set, KeyStr}).
 
 -spec config_info() -> {ok, map()} | {error, term()}.
 config_info() ->

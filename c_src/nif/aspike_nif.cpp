@@ -168,21 +168,17 @@ static ERL_NIF_TERM key_put(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[])
 
 static ERL_NIF_TERM key_remove(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[])
 {
-    char bin[AS_BIN_NAME_MAX_SIZE];
     char name_space[MAX_NAMESPACE_SIZE];
     char set[MAX_SET_SIZE];
     char key_str[MAX_KEY_STR_SIZE];
 
-    if (!enif_get_string(env, argv[0], bin, AS_USER_SIZE, ERL_NIF_UTF8)) {
+    if (!enif_get_string(env, argv[0], name_space, MAX_NAMESPACE_SIZE, ERL_NIF_UTF8)) {
 	    return enif_make_badarg(env);
     }
-    if (!enif_get_string(env, argv[1], name_space, MAX_NAMESPACE_SIZE, ERL_NIF_UTF8)) {
+    if (!enif_get_string(env, argv[1], set, MAX_SET_SIZE, ERL_NIF_UTF8)) {
 	    return enif_make_badarg(env);
     }
-    if (!enif_get_string(env, argv[2], set, MAX_SET_SIZE, ERL_NIF_UTF8)) {
-	    return enif_make_badarg(env);
-    }
-    if (!enif_get_string(env, argv[3], key_str, MAX_KEY_STR_SIZE, ERL_NIF_UTF8)) {
+    if (!enif_get_string(env, argv[2], key_str, MAX_KEY_STR_SIZE, ERL_NIF_UTF8)) {
 	    return enif_make_badarg(env);
     }
     CHECK_ALL
@@ -236,21 +232,17 @@ static ERL_NIF_TERM dump_records(ErlNifEnv* env, const as_record *p_rec) {
 
 static ERL_NIF_TERM key_get(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[])
 {
-    char bin[AS_BIN_NAME_MAX_SIZE];
     char name_space[MAX_NAMESPACE_SIZE];
     char set[MAX_SET_SIZE];
     char key_str[MAX_KEY_STR_SIZE];
 
-    if (!enif_get_string(env, argv[0], bin, AS_USER_SIZE, ERL_NIF_UTF8)) {
+    if (!enif_get_string(env, argv[0], name_space, MAX_NAMESPACE_SIZE, ERL_NIF_UTF8)) {
 	    return enif_make_badarg(env);
     }
-    if (!enif_get_string(env, argv[1], name_space, MAX_NAMESPACE_SIZE, ERL_NIF_UTF8)) {
+    if (!enif_get_string(env, argv[1], set, MAX_SET_SIZE, ERL_NIF_UTF8)) {
 	    return enif_make_badarg(env);
     }
-    if (!enif_get_string(env, argv[2], set, MAX_SET_SIZE, ERL_NIF_UTF8)) {
-	    return enif_make_badarg(env);
-    }
-    if (!enif_get_string(env, argv[3], key_str, MAX_KEY_STR_SIZE, ERL_NIF_UTF8)) {
+    if (!enif_get_string(env, argv[2], key_str, MAX_KEY_STR_SIZE, ERL_NIF_UTF8)) {
 	    return enif_make_badarg(env);
     }
     CHECK_ALL
@@ -274,6 +266,52 @@ static ERL_NIF_TERM key_get(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[])
     }
 
     msg = dump_records(env, p_rec);
+    rc = erl_ok;
+
+    return enif_make_tuple2(env, rc, msg);
+}
+
+static ERL_NIF_TERM key_generation(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[])
+{
+    char name_space[MAX_NAMESPACE_SIZE];
+    char set[MAX_SET_SIZE];
+    char key_str[MAX_KEY_STR_SIZE];
+
+    if (!enif_get_string(env, argv[0], name_space, MAX_NAMESPACE_SIZE, ERL_NIF_UTF8)) {
+	    return enif_make_badarg(env);
+    }
+    if (!enif_get_string(env, argv[1], set, MAX_SET_SIZE, ERL_NIF_UTF8)) {
+	    return enif_make_badarg(env);
+    }
+    if (!enif_get_string(env, argv[2], key_str, MAX_KEY_STR_SIZE, ERL_NIF_UTF8)) {
+	    return enif_make_badarg(env);
+    }
+    CHECK_ALL
+
+    ERL_NIF_TERM rc, msg;
+	as_error err;
+    as_key key;
+    as_record* p_rec = NULL;    
+
+	as_key_init_str(&key, name_space, set, key_str);
+
+    if (aerospike_key_get(&as, &err, NULL, &key, &p_rec)  != AEROSPIKE_OK) {
+        rc = erl_error;
+        msg = enif_make_string(env, err.message, ERL_NIF_UTF8);
+        return enif_make_tuple2(env, rc, msg);
+    }
+    if (p_rec == NULL) {
+        rc = erl_error;
+        msg = enif_make_string(env, "NULL p_rec - internal error", ERL_NIF_UTF8);
+        return enif_make_tuple2(env, rc, msg);
+    }
+    ERL_NIF_TERM keys[2];
+    ERL_NIF_TERM vals[2];
+    keys[0] = enif_make_string(env, "gen", ERL_NIF_UTF8);
+    vals[0] = enif_make_uint64(env, p_rec->gen);
+    keys[1] = enif_make_string(env, "ttl", ERL_NIF_UTF8);
+    vals[1] = enif_make_uint64(env, p_rec->ttl);
+    enif_make_map_from_arrays(env, keys, vals, 2, &msg);
     rc = erl_ok;
 
     return enif_make_tuple2(env, rc, msg);
@@ -500,8 +538,9 @@ static ErlNifFunc nif_funcs[] = {
     {"host_add", 2, host_add},
     {"connect", 2, connect},
     {"key_put", 5, key_put},
-    {"key_remove", 4, key_remove},
-    {"key_get", 4, key_get},
+    {"key_remove", 3, key_remove},
+    {"key_get", 3, key_get},
+    {"key_generation", 3, key_generation},
     {"node_random", 0, node_random},
     {"node_names", 0, node_names},
     {"node_get", 1, node_get},

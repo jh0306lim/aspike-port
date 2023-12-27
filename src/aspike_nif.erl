@@ -15,10 +15,13 @@
     key_put/5,
     key_remove/0,
     key_remove/1,
-    key_remove/4,
+    key_remove/3,
     key_get/0,
     key_get/1,
-    key_get/4,
+    key_get/3,
+    key_generation/0,
+    key_generation/1,
+    key_generation/3,
     mk_args/2,
     node_random/0,
     node_names/0,
@@ -39,8 +42,9 @@
     host_add/2,
     connect/2,
     key_put/5,
-    key_remove/4,
-    key_get/4,
+    key_remove/3,
+    key_get/3,
+    key_generation/3,
     node_random/0,
     node_names/0,
     node_get/1,
@@ -84,7 +88,7 @@ connect(_, _) ->
     not_loaded(?LINE).
 
 key_put() ->
-    key_put("erl-bin-nif", 777).
+    key_put("erl-bin-nif", 999).
 
 key_put(Bin, N) ->
     key_put(Bin, N, "test", "erl-set", "erl-key").
@@ -93,21 +97,29 @@ key_put(_, _, _, _, _) ->
     not_loaded(?LINE).
 
 key_remove() ->
-    key_remove("erl-bin-nif").
+    key_remove("erl-key").
 
-key_remove(Bin) ->
-    key_remove(Bin, "test", "erl-set", "erl-key").
+key_remove(Key) ->
+    key_remove("test", "erl-set", Key).
 
-key_remove(_, _, _, _) ->
+key_remove(_, _, _) ->
     not_loaded(?LINE).
 
 key_get() ->
-    key_get("erl-bin-nif").
+    key_get("erl-key").
 
-key_get(Bin) ->
-    key_get(Bin, "test", "erl-set", "erl-key").
+key_get(Key) ->
+    key_get("test", "erl-set", Key).
 
-key_get(_, _, _, _) ->
+key_get(_, _, _) ->
+    not_loaded(?LINE).
+
+key_generation() ->
+    key_generation("erl-key").
+
+key_generation(Key) ->
+    key_generation("test", "erl-set", Key).
+key_generation(_, _, _) ->
     not_loaded(?LINE).
 
 node_random() ->
