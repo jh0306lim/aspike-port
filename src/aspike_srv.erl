@@ -4,13 +4,11 @@
 
 -behaviour(gen_server).
 
+-include("../include/defines.hrl").
+
 % -------------------------------------------------------------------------------
 
 -define(LIBNAME, aspike_port).
-
--define(DEFAULT_TIMEOUT, 10000).
--define(DEFAULT_HOST, "127.0.0.1").
--define(DEFAULT_PORT, 3010).
 
 -ifndef(TEST).
 -define(TEST, true).
@@ -123,7 +121,7 @@ host_add(Host, Port) when is_list(Host); is_integer(Port) ->
 
 -spec connect() -> {ok, string()} | {error, string()}.
 connect() ->
-    connect("", "").
+    connect(?DEFAULT_USER, ?DEFAULT_PSW).
 
 -spec connect(string(), string()) -> {ok, string()} | {error, string()}.
 connect(User, Pwd) when is_list(User); is_list(Pwd) ->

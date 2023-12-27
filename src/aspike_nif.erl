@@ -2,6 +2,8 @@
 
 -module(aspike_nif).
 
+-include("../include/defines.hrl").
+
 -export([
     as_init/0,
     host_add/0,
@@ -55,8 +57,6 @@
 -on_load(init/0).
 
 -define(LIBNAME, ?MODULE).
--define(DEFAULT_HOST, "127.0.0.1").
--define(DEFAULT_PORT, 3010).
 
 % -------------------------------------------------------------------------------
 
@@ -71,14 +71,14 @@ as_init() ->
 
 -spec host_add() -> {ok, string()} | {error, string()}.
 host_add() ->
-    host_add("127.0.0.1", 3010).
+    host_add(?DEFAULT_HOST, ?DEFAULT_PORT).
 
 -spec host_add(string(), non_neg_integer()) -> {ok, string()} | {error, string()}.
 host_add(_, _) ->
     not_loaded(?LINE).
 
 connect() ->
-    connect("", "").
+    connect(?DEFAULT_USER, ?DEFAULT_PSW).
 
 connect(_, _) ->
     not_loaded(?LINE).
