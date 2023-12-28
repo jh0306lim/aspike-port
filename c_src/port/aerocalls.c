@@ -535,9 +535,18 @@ int call_key_remove(const char *buf, int *index, int arity, int fd_out) {
 }
 
 static void dump_bin(ei_x_buff *p_res_buf, const as_bin* p_bin) {
-    char* val_as_str = as_val_tostring(as_bin_get_value(p_bin));
-    ei_x_encode_string(p_res_buf, val_as_str);
-	free(val_as_str);
+    char* val_as_str = NULL;
+    ei_x_encode_tuple_header(p_res_buf, 2);
+    ei_x_encode_string(p_res_buf, as_bin_get_name(p_bin));
+    switch (as_bin_get_type(p_bin)){
+        case AS_INTEGER:
+            ei_x_encode_long(p_res_buf, as_bin_get_value(p_bin)->integer.value);
+            break;
+        default:
+            val_as_str = as_val_tostring(as_bin_get_value(p_bin));
+            ei_x_encode_string(p_res_buf, val_as_str);
+            free(val_as_str);
+    }
 }
 
 static int dump_records(ei_x_buff *p_res_buf, const as_record *p_rec) {

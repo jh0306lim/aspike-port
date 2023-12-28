@@ -10,6 +10,8 @@
 #include <aerospike/as_node.h>
 #include <aerospike/as_cluster.h>
 #include <aerospike/as_lookup.h>
+#include <aerospike/as_bin.h>
+#include <aerospike/as_val.h>
 
 // ----------------------------------------------------------------------------
 
@@ -200,6 +202,18 @@ static ERL_NIF_TERM key_remove(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv
     return enif_make_tuple2(env, rc, msg);
 }
 
+static ERL_NIF_TERM format_value(ErlNifEnv* env, as_val_t type, as_bin_value *val) {
+    switch(type) {
+        case AS_INTEGER:
+            return enif_make_int64(env, val->integer.value);
+        default:
+            char * val_as_str = as_val_tostring(val);
+            ERL_NIF_TERM res =  enif_make_string(env, as_val_tostring(val), ERL_NIF_UTF8);
+            free(val_as_str);
+            return res;
+    }
+}
+
 static ERL_NIF_TERM dump_records(ErlNifEnv* env, const as_record *p_rec) {
     ERL_NIF_TERM res;
 
@@ -219,8 +233,12 @@ static ERL_NIF_TERM dump_records(ErlNifEnv* env, const as_record *p_rec) {
     int n = 0;
     while (as_record_iterator_has_next(&it)) {
         const as_bin* p_bin = as_record_iterator_next(&it);
-        char* val_as_str = as_val_tostring(as_bin_get_value(p_bin));
-		lst[n++] = enif_make_string(env, val_as_str, ERL_NIF_UTF8);
+        char* name = as_bin_get_name(p_bin);
+        uint type = as_bin_get_type(p_bin);
+		lst[n++] = enif_make_tuple2(env,
+            enif_make_string(env, name, ERL_NIF_UTF8),
+            format_value(env, type, as_bin_get_value(p_bin))
+            );
 	}
 
     res = enif_make_list_from_array(env, lst, num_bins);
