@@ -119,6 +119,7 @@ key_generation() ->
 
 key_generation(Key) ->
     key_generation("test", "erl-set", Key).
+
 key_generation(_, _, _) ->
     not_loaded(?LINE).
 

@@ -168,6 +168,8 @@ static ERL_NIF_TERM key_put(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[])
     return enif_make_tuple2(env, rc, msg);
 }
 
+
+
 static ERL_NIF_TERM key_remove(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[])
 {
     char name_space[MAX_NAMESPACE_SIZE];
@@ -202,7 +204,7 @@ static ERL_NIF_TERM key_remove(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv
     return enif_make_tuple2(env, rc, msg);
 }
 
-static ERL_NIF_TERM format_value(ErlNifEnv* env, as_val_t type, as_bin_value *val) {
+static ERL_NIF_TERM format_value_out(ErlNifEnv* env, as_val_t type, as_bin_value *val) {
     switch(type) {
         case AS_INTEGER:
             return enif_make_int64(env, val->integer.value);
@@ -237,7 +239,7 @@ static ERL_NIF_TERM dump_records(ErlNifEnv* env, const as_record *p_rec) {
         uint type = as_bin_get_type(p_bin);
 		lst[n++] = enif_make_tuple2(env,
             enif_make_string(env, name, ERL_NIF_UTF8),
-            format_value(env, type, as_bin_get_value(p_bin))
+            format_value_out(env, type, as_bin_get_value(p_bin))
             );
 	}
 

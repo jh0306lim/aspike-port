@@ -150,9 +150,7 @@ key_remove(Key) ->
     key_remove("test", "erl-set", Key).
 
 -spec key_remove(string(), string(), string()) -> {ok, string()} | {error, string()}.
-key_remove(Namespace, Set, KeyStr) when
-    is_list(Namespace); is_list(Set); is_list(KeyStr)
-->
+key_remove(Namespace, Set, KeyStr) when is_list(Namespace); is_list(Set); is_list(KeyStr) ->
     command({key_remove, Namespace, Set, KeyStr}).
 
 key_get() ->
@@ -162,9 +160,7 @@ key_get(Key) ->
     key_get("test", "erl-set", Key).
 
 -spec key_get(string(), string(), string()) -> {ok, string()} | {error, string()}.
-key_get(Namespace, Set, KeyStr) when
-    is_list(Namespace); is_list(Set); is_list(KeyStr)
-->
+key_get(Namespace, Set, KeyStr) when is_list(Namespace); is_list(Set); is_list(KeyStr) ->
     command({key_get, Namespace, Set, KeyStr}).
 
 key_generation() ->
@@ -174,9 +170,7 @@ key_generation(Key) ->
     key_generation("test", "erl-set", Key).
 
 -spec key_generation(string(), string(), string()) -> {ok, string()} | {error, string()}.
-key_generation(Namespace, Set, KeyStr) when
-    is_list(Namespace); is_list(Set); is_list(KeyStr)
-->
+key_generation(Namespace, Set, KeyStr) when is_list(Namespace); is_list(Set); is_list(KeyStr) ->
     command({key_generation, Namespace, Set, KeyStr}).
 
 -spec config_info() -> {ok, map()} | {error, term()}.
