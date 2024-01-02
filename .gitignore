@@ -16,7 +16,8 @@ deps
 _build/
 _checkouts/
 
-priv/
+priv/aspike_nif.so  
+priv/aspike_port
 rebar.lock
 .vscode/
 tmp/
