@@ -9,8 +9,6 @@ ERTS_INCLUDE_DIR ?= $(shell erl -noshell -eval "io:format(\"~ts/erts-~ts/include
 ERL_INTERFACE_INCLUDE_DIR ?= $(shell erl -noshell -eval "io:format(\"~ts\", [code:lib_dir(erl_interface, include)])." -s init stop)
 ERL_INTERFACE_LIB_DIR ?= $(shell erl -noshell -eval "io:format(\"~ts\", [code:lib_dir(erl_interface, lib)])." -s init stop)
 
-AERO_BASE = /Users/a.rodionov/prj/aerospiking/aerospike-client-c
-
 C_SRC_DIR = $(CURDIR)
 C_SRC_OUTPUT ?= $(CURDIR)/../../priv/$(PROJECT).so
 
@@ -24,25 +22,26 @@ ifeq ($(UNAME_SYS), Darwin)
 	CFLAGS ?= -O3 -std=c99 -finline-functions -Wall -Wmissing-prototypes
 	CXXFLAGS ?= -O3 -finline-functions -Wall -fpermissive
 	LDFLAGS ?= -flat_namespace -undefined suppress
+	AERO_BASE ?= /usr/local
 else ifeq ($(UNAME_SYS), FreeBSD)
 	CC ?= cc
 	CFLAGS ?= -O3 -std=c99 -finline-functions -Wall -Wmissing-prototypes
 	CXXFLAGS ?= -O3 -finline-functions -Wall
+	AERO_BASE ?= /usr
 else ifeq ($(UNAME_SYS), Linux)
 	CC ?= gcc
 	CFLAGS ?= -O3 -std=c99 -finline-functions -Wall -Wmissing-prototypes
 	CXXFLAGS ?= -O3 -finline-functions -Wall
+	AERO_BASE ?= /usr
 endif
 #CXXFLAGS += -std=c++17
 
-#CFLAGS += -fPIC -I $(ERTS_INCLUDE_DIR) -I $(ERL_INTERFACE_INCLUDE_DIR) -I$(AERO_BASE)/target/Darwin-x86_64/include
-CFLAGS += -fPIC -I $(ERTS_INCLUDE_DIR) -I $(ERL_INTERFACE_INCLUDE_DIR) -I/usr/include/aerospike
+CFLAGS += -fPIC -I $(ERTS_INCLUDE_DIR) -I $(ERL_INTERFACE_INCLUDE_DIR) -I$(AERO_BASE)/include/aerospike
 CXXFLAGS += -fPIC -I $(ERTS_INCLUDE_DIR) -I $(ERL_INTERFACE_INCLUDE_DIR)
 
 LDLIBS += -L $(ERL_INTERFACE_LIB_DIR) -lei 
 LDLIBS += -L/usr/local/lib -L/usr/local/opt/openssl/lib -lev -lssl -lcrypto  -lpthread -lm -lz  -lm -lz
-#LDLIBS += $(AERO_BASE)/target/Darwin-x86_64/lib/libaerospike.a
-LDLIBS += /usr/lib/libaerospike.a
+LDLIBS += $(AERO_BASE)/lib/libaerospike.a
 LDFLAGS += -shared
 
 # Verbosity.

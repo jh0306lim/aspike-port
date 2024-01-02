@@ -18,6 +18,7 @@ _checkouts/
 
 priv/aspike_nif.so  
 priv/aspike_port
+priv/aspike_port.dSYM
 rebar.lock
 .vscode/
 tmp/
