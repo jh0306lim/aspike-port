@@ -21,6 +21,12 @@
 #define MAX_SET_SIZE 64			// based on current server limit
 #define AS_BIN_NAME_MAX_SIZE 16
 
+#ifdef USE_DIRTY
+#define NIF_FUN(A, B, C) {A, B, C, ERL_DIRTY_JOB_IO_BOUND}
+#else
+#define NIF_FUN(A, B, C) {A, B, C}
+#endif
+
 // ----------------------------------------------------------------------------
 
 static aerospike as;
@@ -553,20 +559,21 @@ static ERL_NIF_TERM bar_nif(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[])
     return enif_make_int(env, ret);
 }
 
+
 static ErlNifFunc nif_funcs[] = {
     {"as_init", 0, as_init},
-    {"host_add", 2, host_add},
-    {"connect", 2, connect},
-    {"key_put", 5, key_put},
-    {"key_remove", 3, key_remove},
-    {"key_get", 3, key_get},
-    {"key_generation", 3, key_generation},
-    {"node_random", 0, node_random},
-    {"node_names", 0, node_names},
-    {"node_get", 1, node_get},
-    {"nif_node_info", 2, nif_node_info},
-    {"nif_help", 1, nif_help},
-    {"nif_host_info", 3, nif_host_info},
+    NIF_FUN("host_add", 2, host_add),
+    NIF_FUN("connect", 2, connect),
+    NIF_FUN("key_put", 5, key_put),
+    NIF_FUN("key_remove", 3, key_remove),
+    NIF_FUN("key_get", 3, key_get),
+    NIF_FUN("key_generation", 3, key_generation),
+    NIF_FUN("node_random", 0, node_random),
+    NIF_FUN("node_names", 0, node_names),
+    NIF_FUN("node_get", 1, node_get),
+    NIF_FUN("nif_node_info", 2, nif_node_info),
+    NIF_FUN("nif_help", 1, nif_help),
+    NIF_FUN("nif_host_info", 3, nif_host_info),
     // ----------------------------------------------------
     {"foo", 1, foo_nif},
     {"bar", 1, bar_nif}
