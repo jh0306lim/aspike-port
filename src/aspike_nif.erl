@@ -181,7 +181,6 @@ a_key_put(Rep) ->
 
 a_key_put(_, _, _, _, _, _) ->
     not_loaded(?LINE).
-    
 
 foo(_X) ->
     exit(nif_library_not_loaded).

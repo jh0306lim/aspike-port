@@ -3,6 +3,7 @@
 -export([t/4, t/5, ts/3, ts/4, tst/4, tst/5]).
 
 -define(DEFAULT_UNIT, microsecond).
+
 % second | millisecond | microsecond | nanosecond | native | perf_counter
 ts(Mod, Fn, Args) ->
     ts(Mod, Fn, Args, ?DEFAULT_UNIT).
