@@ -8,7 +8,7 @@ tst(Mod, Fn, Args) ->
 
 tst(Mod, Fn, N, R) ->
     Args = Mod:mk_args(Fn, N),
-    io:format("~p:~p, N=~p, R=~p, Time=~p(msec)~n", [
+    io:format("~p:~p, N=~p, R=~p, Time=~p(microseconds)~n", [
         Mod,
         Fn,
         N,

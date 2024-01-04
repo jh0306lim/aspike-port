@@ -1,5 +1,7 @@
 #include <erl_nif.h>
 
+#include <time.h>
+
 #include <aerospike/aerospike.h>
 #include <aerospike/aerospike_info.h>
 #include <aerospike/aerospike_key.h>
@@ -174,6 +176,83 @@ static ERL_NIF_TERM key_put(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[])
     return enif_make_tuple2(env, rc, msg);
 }
 
+
+// #define CLOCK_REALTIME 0 
+// #define CLOCK_MONOTONIC 6 
+// #define CLOCK_PROCESS_CPUTIME_ID  12 
+// #define CLOCK_THREAD_CPUTIME_ID  16 
+
+static ERL_NIF_TERM a_key_put(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[])
+{
+    char bin[AS_BIN_NAME_MAX_SIZE];
+    long val;
+    char name_space[MAX_NAMESPACE_SIZE];
+    char set[MAX_SET_SIZE];
+    char key_str[MAX_KEY_STR_SIZE];
+    long n;
+
+    if (!enif_get_string(env, argv[0], bin, AS_USER_SIZE, ERL_NIF_UTF8)) {
+	    return enif_make_badarg(env);
+    }
+    if (!enif_get_long(env, argv[1], &val)) {
+	    return enif_make_badarg(env);
+    }
+    if (!enif_get_string(env, argv[2], name_space, MAX_NAMESPACE_SIZE, ERL_NIF_UTF8)) {
+	    return enif_make_badarg(env);
+    }
+    if (!enif_get_string(env, argv[3], set, MAX_SET_SIZE, ERL_NIF_UTF8)) {
+	    return enif_make_badarg(env);
+    }
+    if (!enif_get_string(env, argv[4], key_str, MAX_KEY_STR_SIZE, ERL_NIF_UTF8)) {
+	    return enif_make_badarg(env);
+    }
+    if (!enif_get_long(env, argv[5], &n)) {
+	    return enif_make_badarg(env);
+    }
+    CHECK_ALL
+
+    ERL_NIF_TERM rc, msg;
+	as_error err;
+    as_key key;
+	as_record rec;
+
+	as_key_init_str(&key, name_space, set, key_str);
+	as_record_inita(&rec, 1);
+	as_record_set_int64(&rec, bin, val);
+
+    struct timespec thread_start, thread_done;
+    struct timespec real_start, real_done;
+    
+    clock_gettime(CLOCK_THREAD_CPUTIME_ID, &thread_start);
+    clock_gettime(CLOCK_REALTIME, &real_start);
+
+    for (int i=0; i < n; i++) {
+        if (aerospike_key_put(&as, &err, NULL, &key, &rec)  != AEROSPIKE_OK) {
+            rc = erl_error;
+            msg = enif_make_string(env, err.message, ERL_NIF_UTF8);
+            return enif_make_tuple2(env, rc, msg);
+        }
+    }
+    clock_gettime(CLOCK_THREAD_CPUTIME_ID, &thread_done);
+    clock_gettime(CLOCK_REALTIME, &real_done);
+    // Convert to microseconds
+    ErlNifSInt64 thread_tspent = (thread_done.tv_sec - thread_start.tv_sec) * 1000000 + (thread_done.tv_nsec - thread_start.tv_nsec) / 1000;
+    ErlNifSInt64 real_tspent = (real_done.tv_sec - real_start.tv_sec) * 1000000 + (real_done.tv_nsec - real_start.tv_nsec) / 1000;
+
+    rc = erl_ok;
+
+    ERL_NIF_TERM keys[3];
+    ERL_NIF_TERM vals[3];
+    keys[0] = enif_make_string(env, "repetitions", ERL_NIF_UTF8);
+    vals[0] = enif_make_uint64(env, n);
+    keys[1] = enif_make_string(env, "CLOCK_THREAD_CPUTIME_ID", ERL_NIF_UTF8);
+    vals[1] = enif_make_double(env, thread_tspent/n);    // from micro to mille seconds
+    keys[2] = enif_make_string(env, "CLOCK_REALTIME", ERL_NIF_UTF8);
+    vals[2] = enif_make_double(env, real_tspent/n);       // from micro to mille seconds
+    enif_make_map_from_arrays(env, keys, vals, 3, &msg);
+    return enif_make_tuple2(env, rc, msg);
+
+}
 
 
 static ERL_NIF_TERM key_remove(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[])
@@ -575,6 +654,7 @@ static ErlNifFunc nif_funcs[] = {
     NIF_FUN("nif_help", 1, nif_help),
     NIF_FUN("nif_host_info", 3, nif_host_info),
     // ----------------------------------------------------
+    NIF_FUN("a_key_put", 6, a_key_put),
     {"foo", 1, foo_nif},
     {"bar", 1, bar_nif}
 };

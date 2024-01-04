@@ -33,6 +33,9 @@
     host_info/3,
     b/0,
     % --------------------------------------
+    a_key_put/0,
+    a_key_put/1,
+    a_key_put/6,
     foo/1,
     bar/1
 ]).
@@ -52,6 +55,7 @@
     nif_help/1,
     nif_host_info/3,
     % --------------------------------------
+    a_key_put/6,
     foo/1,
     bar/1
 ]).
@@ -169,6 +173,16 @@ b() ->
 mk_args(_, _) -> [].
 
 % -----------------------------------------------------------------
+a_key_put() ->
+    a_key_put(10000).
+
+a_key_put(Rep) ->
+    a_key_put("erl-bin-nif", 999, "test", "erl-set", "erl-key", Rep).
+
+a_key_put(_, _, _, _, _, _) ->
+    not_loaded(?LINE).
+    
+
 foo(_X) ->
     exit(nif_library_not_loaded).
 
