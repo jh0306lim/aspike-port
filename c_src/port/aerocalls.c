@@ -452,26 +452,26 @@ int call_key_put(const char *buf, int *index, int arity, int fd_out) {
     char set[MAX_SET_SIZE];
     char key_str[MAX_KEY_STR_SIZE];
 
-    if (ei_decode_string(buf, index, bin) != 0) {
-        ERROR("invalid first argument: bin")
-        goto end;
-    }
-    if (ei_decode_long(buf, index, &val) != 0) {
-        ERROR("invalid second argument: val")
-        goto end;
-    }
     if (ei_decode_string(buf, index, namespace) != 0) {
-        ERROR("invalid third argument: namespace")
+        ERROR("invalid first argument: namespace")
         goto end;
     } 
     if (ei_decode_string(buf, index, set) != 0) {
-        ERROR("invalid forth argument: set")
+        ERROR("invalid second argument: set")
         goto end;
     } 
     if (ei_decode_string(buf, index, key_str) != 0) {
-        ERROR("invalid fifth argument: key_str")
+        ERROR("invalid third argument: key_str")
         goto end;
     } 
+    if (ei_decode_string(buf, index, bin) != 0) {
+        ERROR("invalid fourth argument: bin")
+        goto end;
+    }
+    if (ei_decode_long(buf, index, &val) != 0) {
+        ERROR("invalid fifth argument: val")
+        goto end;
+    }
 
     CHECK_ALL
 

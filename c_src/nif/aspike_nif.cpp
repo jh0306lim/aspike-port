@@ -23,6 +23,7 @@
 #define MAX_SET_SIZE 64			// based on current server limit
 #define AS_BIN_NAME_MAX_SIZE 16
 
+#define USE_DIRTY 1
 #ifdef USE_DIRTY
 #define NIF_FUN(A, B, C) {A, B, C, ERL_DIRTY_JOB_IO_BOUND}
 #else
@@ -138,19 +139,19 @@ static ERL_NIF_TERM key_put(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[])
     char set[MAX_SET_SIZE];
     char key_str[MAX_KEY_STR_SIZE];
 
-    if (!enif_get_string(env, argv[0], bin, AS_USER_SIZE, ERL_NIF_UTF8)) {
+    if (!enif_get_string(env, argv[0], name_space, MAX_NAMESPACE_SIZE, ERL_NIF_UTF8)) {
 	    return enif_make_badarg(env);
     }
-    if (!enif_get_long(env, argv[1], &val)) {
+    if (!enif_get_string(env, argv[1], set, MAX_SET_SIZE, ERL_NIF_UTF8)) {
 	    return enif_make_badarg(env);
     }
-    if (!enif_get_string(env, argv[2], name_space, MAX_NAMESPACE_SIZE, ERL_NIF_UTF8)) {
+    if (!enif_get_string(env, argv[2], key_str, MAX_KEY_STR_SIZE, ERL_NIF_UTF8)) {
 	    return enif_make_badarg(env);
     }
-    if (!enif_get_string(env, argv[3], set, MAX_SET_SIZE, ERL_NIF_UTF8)) {
+    if (!enif_get_string(env, argv[3], bin, AS_USER_SIZE, ERL_NIF_UTF8)) {
 	    return enif_make_badarg(env);
     }
-    if (!enif_get_string(env, argv[4], key_str, MAX_KEY_STR_SIZE, ERL_NIF_UTF8)) {
+    if (!enif_get_long(env, argv[4], &val)) {
 	    return enif_make_badarg(env);
     }
     CHECK_ALL

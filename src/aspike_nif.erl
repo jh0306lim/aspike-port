@@ -12,6 +12,7 @@
     connect/2,
     key_put/0,
     key_put/2,
+    key_put/3,
     key_put/5,
     key_remove/0,
     key_remove/1,
@@ -95,7 +96,10 @@ key_put() ->
     key_put("erl-bin-nif", 999).
 
 key_put(Bin, N) ->
-    key_put(Bin, N, "test", "erl-set", "erl-key").
+    key_put("erl-key", Bin, N).
+
+key_put(Key, Bin, N) ->
+    key_put("test", "erl-set", Key, Bin, N).
 
 key_put(_, _, _, _, _) ->
     not_loaded(?LINE).

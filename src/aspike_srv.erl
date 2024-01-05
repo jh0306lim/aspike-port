@@ -52,6 +52,7 @@
     host_add/2,
     key_put/0,
     key_put/2,
+    key_put/4,
     key_put/5,
     key_remove/0,
     key_remove/1,
@@ -131,17 +132,23 @@ connect(User, Pwd) when is_list(User); is_list(Pwd) ->
     command({connect, User, Pwd}).
 
 key_put() ->
-    key_put("erl-bin-111", 1111).
+    key_put([{"p-bin-111", 1111}, {"p-bin-112", 1112}, {"p-bin-113", 1113}]).
 
-key_put(Bin, N) ->
-    key_put(Bin, N, "test", "erl-set", "erl-key").
+key_put(Lst) ->
+    key_put("erl-key", Lst).
 
--spec key_put(string(), integer(), string(), string(), string()) ->
+key_put(Key, Lst) ->
+    key_put("test", "erl-set", Key, Lst).
+
+key_put(Namespace, Set, Key, Lst) when is_list(Lst) ->
+    lists:foreach(fun({Bin, N}) -> key_put(Namespace, Set, Key, Bin, N) end, Lst).
+
+-spec key_put(string(), string(), string(), string(), integer()) ->
     {ok, string()} | {error, string()}.
-key_put(Bin, N, Namespace, Set, KeyStr) when
+key_put(Namespace, Set, KeyStr, Bin, N) when
     is_list(Bin); is_integer(N); is_list(Namespace); is_list(Set); is_list(KeyStr)
 ->
-    command({key_put, Bin, N, Namespace, Set, KeyStr}).
+    command({key_put, Namespace, Set, KeyStr, Bin, N}).
 
 key_remove() ->
     key_remove("erl-key").
