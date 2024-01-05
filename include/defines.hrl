@@ -9,4 +9,9 @@
 -define(DEFAULT_USER, application:get_env(?APPNAME, user, "")).
 -define(DEFAULT_PSW, application:get_env(?APPNAME, psw, "")).
 
+-define(DEFAULT_NAMESPACE, "test").
+% -define(DEFAULT_NAMESPACE, "pi-stream").
+-define(DEFAULT_SET, "erl-set").
+-define(DEFAULT_KEY, "erl-key").
+
 -endif.

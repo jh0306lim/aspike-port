@@ -135,10 +135,10 @@ key_put() ->
     key_put([{"p-bin-111", 1111}, {"p-bin-112", 1112}, {"p-bin-113", 1113}]).
 
 key_put(Lst) ->
-    key_put("erl-key", Lst).
+    key_put(?DEFAULT_KEY, Lst).
 
 key_put(Key, Lst) ->
-    key_put("test", "erl-set", Key, Lst).
+    key_put(?DEFAULT_NAMESPACE, ?DEFAULT_SET, Key, Lst).
 
 -spec key_put(string(), string(), string(), [{string(), integer()}]) ->
     {ok, string()} | {error, string()}.
@@ -146,30 +146,30 @@ key_put(Namespace, Set, Key, Lst) when is_list(Lst) ->
     command({key_put, Namespace, Set, Key, Lst}).
 
 key_remove() ->
-    key_remove("erl-key").
+    key_remove(?DEFAULT_KEY).
 
 key_remove(Key) ->
-    key_remove("test", "erl-set", Key).
+    key_remove(?DEFAULT_NAMESPACE, ?DEFAULT_SET, Key).
 
 -spec key_remove(string(), string(), string()) -> {ok, string()} | {error, string()}.
 key_remove(Namespace, Set, KeyStr) when is_list(Namespace); is_list(Set); is_list(KeyStr) ->
     command({key_remove, Namespace, Set, KeyStr}).
 
 key_get() ->
-    key_get("erl-key").
+    key_get(?DEFAULT_KEY).
 
 key_get(Key) ->
-    key_get("test", "erl-set", Key).
+    key_get(?DEFAULT_NAMESPACE, ?DEFAULT_SET, Key).
 
 -spec key_get(string(), string(), string()) -> {ok, string()} | {error, string()}.
 key_get(Namespace, Set, KeyStr) when is_list(Namespace); is_list(Set); is_list(KeyStr) ->
     command({key_get, Namespace, Set, KeyStr}).
 
 key_generation() ->
-    key_generation("erl-key").
+    key_generation(?DEFAULT_KEY).
 
 key_generation(Key) ->
-    key_generation("test", "erl-set", Key).
+    key_generation(?DEFAULT_NAMESPACE, ?DEFAULT_SET, Key).
 
 -spec key_generation(string(), string(), string()) -> {ok, string()} | {error, string()}.
 key_generation(Namespace, Set, KeyStr) when is_list(Namespace); is_list(Set); is_list(KeyStr) ->
@@ -298,10 +298,10 @@ call_port(Caller, Port, Msg) ->
 % 9> aspike_srv:node_get("BB9020011AC4202").
 % {ok,"127.0.0.1:3010"}
 % 4> aspike_srv:node_info("BB9020011AC4202", "namespaces").
-% {ok,{"namespaces",["test"]}}
+% {ok,{"namespaces",[?DEFAULT_NAMESPACE]}}
 % 
 % 8> aspike_srv:help("namespaces").
-% {ok,{"namespaces",["test"]}}
+% {ok,{"namespaces",[?DEFAULT_NAMESPACE]}}
 % 9> aspike_srv:help("nodes").     
 % {error,"no data"}
 % 10> aspike_srv:help("node"). 
@@ -311,7 +311,7 @@ call_port(Caller, Port, Msg) ->
 % {ok,{"sindex-list:",
 % [#{"bin" => "binint","context" => null,
 %    "indexname" => "page-index","indextype" => "default",
-%    "ns" => "test","set" => "queryresume","state" => "RW",
+%    "ns" => ?DEFAULT_NAMESPACE,"set" => "queryresume","state" => "RW",
 %    "type" => "numeric"}]}}
 % 
 % 12> tsl:tst(aspike_srv, key_put, 0, 10000).

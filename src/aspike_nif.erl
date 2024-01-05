@@ -96,37 +96,37 @@ key_put() ->
     key_put([{"n-bin-111", 1111}, {"n-bin-112", 1112}, {"n-bin-113", 1113}]).
 
 key_put(Lst) ->
-    key_put("erl-key", Lst).
+    key_put(?DEFAULT_KEY, Lst).
 
 key_put(Key, Lst) ->
-    key_put("test", "erl-set", Key, Lst).
+    key_put(?DEFAULT_NAMESPACE, ?DEFAULT_SET, Key, Lst).
 
 key_put(_, _, _, _) ->
     not_loaded(?LINE).
 
 key_remove() ->
-    key_remove("erl-key").
+    key_remove(?DEFAULT_KEY).
 
 key_remove(Key) ->
-    key_remove("test", "erl-set", Key).
+    key_remove(?DEFAULT_NAMESPACE, ?DEFAULT_SET, Key).
 
 key_remove(_, _, _) ->
     not_loaded(?LINE).
 
 key_get() ->
-    key_get("erl-key").
+    key_get(?DEFAULT_KEY).
 
 key_get(Key) ->
-    key_get("test", "erl-set", Key).
+    key_get(?DEFAULT_NAMESPACE, ?DEFAULT_SET, Key).
 
 key_get(_, _, _) ->
     not_loaded(?LINE).
 
 key_generation() ->
-    key_generation("erl-key").
+    key_generation(?DEFAULT_KEY).
 
 key_generation(Key) ->
-    key_generation("test", "erl-set", Key).
+    key_generation(?DEFAULT_NAMESPACE, ?DEFAULT_SET, Key).
 
 key_generation(_, _, _) ->
     not_loaded(?LINE).
@@ -181,7 +181,7 @@ a_key_put() ->
     a_key_put(10000).
 
 a_key_put(Rep) ->
-    a_key_put("erl-bin-nif", 999, "test", "erl-set", "erl-key", Rep).
+    a_key_put("erl-bin-nif", 999, ?DEFAULT_NAMESPACE, ?DEFAULT_SET, ?DEFAULT_KEY, Rep).
 
 a_key_put(_, _, _, _, _, _) ->
     not_loaded(?LINE).
