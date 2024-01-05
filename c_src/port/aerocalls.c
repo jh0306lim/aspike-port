@@ -200,7 +200,7 @@ int function_call(const char *buf, int *index, int arity, int fd_out) {
     if (check_name(fname, "connect", arity, 3)) {
         return call_connect(buf, index, arity, fd_out);
     }
-    if (check_name(fname, "key_put", arity, 6)) {
+    if (check_name(fname, "key_put", arity, 5)) {
         return call_key_put(buf, index, arity, fd_out);
     }
     if (check_name(fname, "key_remove", arity, 4)) {
@@ -446,11 +446,10 @@ int call_connect(const char *buf, int *index, int arity, int fd_out) {
 int call_key_put(const char *buf, int *index, int arity, int fd_out) {
     PRE
 
-    char bin[AS_BIN_NAME_MAX_SIZE];
-    long val;
     char namespace[MAX_NAMESPACE_SIZE];
     char set[MAX_SET_SIZE];
     char key_str[MAX_KEY_STR_SIZE];
+    int length;
 
     if (ei_decode_string(buf, index, namespace) != 0) {
         ERROR("invalid first argument: namespace")
@@ -464,12 +463,8 @@ int call_key_put(const char *buf, int *index, int arity, int fd_out) {
         ERROR("invalid third argument: key_str")
         goto end;
     } 
-    if (ei_decode_string(buf, index, bin) != 0) {
-        ERROR("invalid fourth argument: bin")
-        goto end;
-    }
-    if (ei_decode_long(buf, index, &val) != 0) {
-        ERROR("invalid fifth argument: val")
+    if (ei_decode_list_header(buf, index, &length) != 0) {
+        ERROR("invalid fourth argument: list")
         goto end;
     }
 
@@ -479,16 +474,36 @@ int call_key_put(const char *buf, int *index, int arity, int fd_out) {
 	as_key_init_str(&key, namespace, set, key_str);
 
 	as_record rec;
-	as_record_inita(&rec, 1);
-	as_record_set_int64(&rec, bin, val);
-    
-	as_error err;
-    // Write the record to the database.
-	if (aerospike_key_put(&as, &err, NULL, &key, &rec) != AEROSPIKE_OK) {
-        ERROR(err.message)
-        goto end;
-	}
+	as_record_inita(&rec, length);
 
+    int t_length;
+    char bin[AS_BIN_NAME_MAX_SIZE];
+    long val;
+
+    for (int i = 0; i < length; i++) {
+        if (ei_decode_tuple_header(buf, index, &t_length) != 0 || t_length != 2) {
+            ERROR("invalid tuple")
+            goto end;
+        } 
+        if (ei_decode_string(buf, index, bin) != 0) {
+            ERROR("invalid bin")
+            goto end;
+        }
+        if (ei_decode_long(buf, index, &val) != 0) {
+            ERROR("invalid val")
+            goto end;
+        }
+    	as_record_set_int64(&rec, bin, val);
+    }
+    
+    if (length > 0) {
+        as_error err;
+        // Write the record to the database.
+        if (aerospike_key_put(&as, &err, NULL, &key, &rec) != AEROSPIKE_OK) {
+            ERROR(err.message)
+            goto end;
+        }
+    }
     OK("key_put")
 
     end:

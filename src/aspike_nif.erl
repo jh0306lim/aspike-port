@@ -11,9 +11,9 @@
     connect/0,
     connect/2,
     key_put/0,
+    key_put/1,
     key_put/2,
-    key_put/3,
-    key_put/5,
+    key_put/4,
     key_remove/0,
     key_remove/1,
     key_remove/3,
@@ -45,7 +45,7 @@
     as_init/0,
     host_add/2,
     connect/2,
-    key_put/5,
+    key_put/4,
     key_remove/3,
     key_get/3,
     key_generation/3,
@@ -93,15 +93,15 @@ connect(_, _) ->
     not_loaded(?LINE).
 
 key_put() ->
-    key_put("erl-bin-nif", 999).
+    key_put([{"n-bin-111", 1111}, {"n-bin-112", 1112}, {"n-bin-113", 1113}]).
 
-key_put(Bin, N) ->
-    key_put("erl-key", Bin, N).
+key_put(Lst) ->
+    key_put("erl-key", Lst).
 
-key_put(Key, Bin, N) ->
-    key_put("test", "erl-set", Key, Bin, N).
+key_put(Key, Lst) ->
+    key_put("test", "erl-set", Key, Lst).
 
-key_put(_, _, _, _, _) ->
+key_put(_, _, _, _) ->
     not_loaded(?LINE).
 
 key_remove() ->

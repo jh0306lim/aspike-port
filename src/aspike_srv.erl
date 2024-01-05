@@ -51,9 +51,9 @@
     host_add/0,
     host_add/2,
     key_put/0,
+    key_put/1,
     key_put/2,
     key_put/4,
-    key_put/5,
     key_remove/0,
     key_remove/1,
     key_remove/3,
@@ -140,15 +140,10 @@ key_put(Lst) ->
 key_put(Key, Lst) ->
     key_put("test", "erl-set", Key, Lst).
 
-key_put(Namespace, Set, Key, Lst) when is_list(Lst) ->
-    lists:foreach(fun({Bin, N}) -> key_put(Namespace, Set, Key, Bin, N) end, Lst).
-
--spec key_put(string(), string(), string(), string(), integer()) ->
+-spec key_put(string(), string(), string(), [{string(), integer()}]) ->
     {ok, string()} | {error, string()}.
-key_put(Namespace, Set, KeyStr, Bin, N) when
-    is_list(Bin); is_integer(N); is_list(Namespace); is_list(Set); is_list(KeyStr)
-->
-    command({key_put, Namespace, Set, KeyStr, Bin, N}).
+key_put(Namespace, Set, Key, Lst) when is_list(Lst) ->
+    command({key_put, Namespace, Set, Key, Lst}).
 
 key_remove() ->
     key_remove("erl-key").
