@@ -48,7 +48,7 @@ static ERL_NIF_TERM erl_ok;
     }
 
 #define CHECK_IS_CONNECTED \
-    if (!is_aerospike_initialised) {\
+    if (!is_connected) {\
         return enif_make_tuple2(env,\
             enif_make_atom(env, "error"),\
             enif_make_string(env, "not connected", ERL_NIF_UTF8));\
@@ -112,7 +112,7 @@ static ERL_NIF_TERM connect(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[])
     if (!enif_get_string(env, argv[1], password, AS_PASSWORD_SIZE, ERL_NIF_UTF8)) {
 	    return enif_make_badarg(env);
     }
-    CHECK_ALL
+    CHECK_AEROSPIKE_INIT
 
     ERL_NIF_TERM rc, msg;
     as_config_set_user(&as.config, user, password);
@@ -203,6 +203,79 @@ static ERL_NIF_TERM key_put(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[])
     return enif_make_tuple2(env, rc, msg);
 }
 
+static ERL_NIF_TERM key_inc(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[])
+{
+    char name_space[MAX_NAMESPACE_SIZE];
+    char set[MAX_SET_SIZE];
+    char key_str[MAX_KEY_STR_SIZE];
+    unsigned int length;
+
+    if (!enif_get_string(env, argv[0], name_space, MAX_NAMESPACE_SIZE, ERL_NIF_UTF8)) {
+	    return enif_make_badarg(env);
+    }
+    if (!enif_get_string(env, argv[1], set, MAX_SET_SIZE, ERL_NIF_UTF8)) {
+	    return enif_make_badarg(env);
+    }
+    if (!enif_get_string(env, argv[2], key_str, MAX_KEY_STR_SIZE, ERL_NIF_UTF8)) {
+	    return enif_make_badarg(env);
+    }
+    ERL_NIF_TERM list = argv[3];
+    if (!enif_is_list(env, list) || !enif_get_list_length(env, list, &length)) {
+	    return enif_make_badarg(env);
+    }
+    CHECK_ALL
+
+    ERL_NIF_TERM rc, msg;
+    if (length == 0) {
+        rc = erl_ok;
+        msg = enif_make_string(env, "key_inc", ERL_NIF_UTF8);
+        return enif_make_tuple2(env, rc, msg);
+    }
+
+	as_error err;
+    as_key key;
+	// as_record rec;
+
+	as_key_init_str(&key, name_space, set, key_str);
+	// as_record_inita(&rec, length);
+
+    as_operations ops;
+	as_operations_inita(&ops, length);
+
+    for (int i = 0; i < length; i++) {
+        ERL_NIF_TERM head;
+        ERL_NIF_TERM tail;
+        char bin[AS_BIN_NAME_MAX_SIZE] = {0};
+        long val = 0;
+        int t_length;
+        const ERL_NIF_TERM* tuple = NULL;
+
+        if (!enif_get_list_cell(env, list, &head, &tail)) {
+            break;
+        }
+        if(!enif_get_tuple(env, head, &t_length, &tuple) || t_length != 2){
+            return enif_make_badarg(env);
+        }
+        if (!enif_get_string(env, tuple[0], bin, MAX_SET_SIZE, ERL_NIF_UTF8)) {
+    	    return enif_make_badarg(env);
+        }
+        if (!enif_get_long(env, tuple[1], &val)) {
+            return enif_make_badarg(env);
+        }
+        as_operations_add_incr(&ops, bin, val);
+        list = tail;
+    }
+
+    if (aerospike_key_operate(&as, &err, NULL, &key, &ops, NULL)  != AEROSPIKE_OK) {
+        rc = erl_error;;
+        msg = enif_make_string(env, err.message, ERL_NIF_UTF8);
+    } else {
+        rc = erl_ok;
+        msg = enif_make_string(env, "key_inc", ERL_NIF_UTF8);
+    }
+
+    return enif_make_tuple2(env, rc, msg);
+}
 
 // #define CLOCK_REALTIME 0 
 // #define CLOCK_MONOTONIC 6 
@@ -670,6 +743,7 @@ static ErlNifFunc nif_funcs[] = {
     {"as_init", 0, as_init},
     NIF_FUN("host_add", 2, host_add),
     NIF_FUN("connect", 2, connect),
+    NIF_FUN("key_inc", 4, key_inc),
     NIF_FUN("key_put", 4, key_put),
     NIF_FUN("key_remove", 3, key_remove),
     NIF_FUN("key_get", 3, key_get),

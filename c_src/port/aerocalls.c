@@ -119,6 +119,7 @@ int call_aerospike_init(const char *buf, int *index, int arity, int fd_out);
 int call_config_add_hosts(const char *buf, int *index, int arity, int fd_out);
 int call_port_status(const char *buf, int *index, int arity, int fd_out);
 
+int call_key_inc(const char *buf, int *index, int arity, int fd_out);
 int call_key_put(const char *buf, int *index, int arity, int fd_out);
 int call_key_remove(const char *buf, int *index, int arity, int fd_out);
 int call_key_get(const char *buf, int *index, int arity, int fd_out);
@@ -199,6 +200,9 @@ int function_call(const char *buf, int *index, int arity, int fd_out) {
     }
     if (check_name(fname, "connect", arity, 3)) {
         return call_connect(buf, index, arity, fd_out);
+    }
+    if (check_name(fname, "key_inc", arity, 5)) {
+        return call_key_inc(buf, index, arity, fd_out);
     }
     if (check_name(fname, "key_put", arity, 5)) {
         return call_key_put(buf, index, arity, fd_out);
@@ -500,6 +504,74 @@ int call_key_put(const char *buf, int *index, int arity, int fd_out) {
         as_error err;
         // Write the record to the database.
         if (aerospike_key_put(&as, &err, NULL, &key, &rec) != AEROSPIKE_OK) {
+            ERROR(err.message)
+            goto end;
+        }
+    }
+    OK("key_put")
+
+    end:
+    POST
+}
+
+
+int call_key_inc(const char *buf, int *index, int arity, int fd_out) {
+    PRE
+
+    char namespace[MAX_NAMESPACE_SIZE];
+    char set[MAX_SET_SIZE];
+    char key_str[MAX_KEY_STR_SIZE];
+    int length;
+
+    if (ei_decode_string(buf, index, namespace) != 0) {
+        ERROR("invalid first argument: namespace")
+        goto end;
+    } 
+    if (ei_decode_string(buf, index, set) != 0) {
+        ERROR("invalid second argument: set")
+        goto end;
+    } 
+    if (ei_decode_string(buf, index, key_str) != 0) {
+        ERROR("invalid third argument: key_str")
+        goto end;
+    } 
+    if (ei_decode_list_header(buf, index, &length) != 0) {
+        ERROR("invalid fourth argument: list")
+        goto end;
+    }
+
+    CHECK_ALL
+
+    as_key key;
+	as_key_init_str(&key, namespace, set, key_str);
+
+    as_operations ops;
+	as_operations_inita(&ops, length);
+
+    int t_length;
+    char bin[AS_BIN_NAME_MAX_SIZE];
+    long val;
+
+    for (int i = 0; i < length; i++) {
+        if (ei_decode_tuple_header(buf, index, &t_length) != 0 || t_length != 2) {
+            ERROR("invalid tuple")
+            goto end;
+        } 
+        if (ei_decode_string(buf, index, bin) != 0) {
+            ERROR("invalid bin")
+            goto end;
+        }
+        if (ei_decode_long(buf, index, &val) != 0) {
+            ERROR("invalid val")
+            goto end;
+        }
+        as_operations_add_incr(&ops, bin, val);
+    }
+    
+    if (length > 0) {
+        as_error err;
+        // Write the record to the database.
+        if (aerospike_key_operate(&as, &err, NULL, &key, &ops, NULL)  != AEROSPIKE_OK) {
             ERROR(err.message)
             goto end;
         }

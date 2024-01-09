@@ -50,6 +50,10 @@
     cluster_info/0,
     host_add/0,
     host_add/2,
+    key_inc/0,
+    key_inc/1,
+    key_inc/2,
+    key_inc/4,
     key_put/0,
     key_put/1,
     key_put/2,
@@ -130,6 +134,18 @@ connect() ->
 -spec connect(string(), string()) -> {ok, string()} | {error, string()}.
 connect(User, Pwd) when is_list(User); is_list(Pwd) ->
     command({connect, User, Pwd}).
+
+key_inc() ->
+    key_inc([{"p-bin-111", 1}, {"p-bin-112", 10}, {"p-bin-113", -1}]).
+
+key_inc(Lst) ->
+    key_inc(?DEFAULT_KEY, Lst).
+
+key_inc(Key, Lst) ->
+    key_inc(?DEFAULT_NAMESPACE, ?DEFAULT_SET, Key, Lst).
+
+key_inc(Namespace, Set, Key, Lst) ->
+    command({key_inc, Namespace, Set, Key, Lst}).
 
 key_put() ->
     key_put([{"p-bin-111", 1111}, {"p-bin-112", 1112}, {"p-bin-113", 1113}]).

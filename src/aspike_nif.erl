@@ -10,6 +10,10 @@
     host_add/2,
     connect/0,
     connect/2,
+    key_inc/0,
+    key_inc/1,
+    key_inc/2,
+    key_inc/4,
     key_put/0,
     key_put/1,
     key_put/2,
@@ -45,6 +49,7 @@
     as_init/0,
     host_add/2,
     connect/2,
+    key_inc/4,
     key_put/4,
     key_remove/3,
     key_get/3,
@@ -92,6 +97,18 @@ connect() ->
 connect(_, _) ->
     not_loaded(?LINE).
 
+key_inc() ->
+    key_inc([{"n-bin-111", 1}, {"n-bin-112", 10}, {"n-bin-113", -1}]).
+
+key_inc(Lst) ->
+    key_inc(?DEFAULT_KEY, Lst).
+
+key_inc(Key, Lst) ->
+    key_inc(?DEFAULT_NAMESPACE, ?DEFAULT_SET, Key, Lst).
+
+key_inc(_, _, _, _) ->
+    not_loaded(?LINE).
+
 key_put() ->
     key_put([{"n-bin-111", 1111}, {"n-bin-112", 1112}, {"n-bin-113", 1113}]).
 
@@ -103,7 +120,7 @@ key_put(Key, Lst) ->
 
 key_put(_, _, _, _) ->
     not_loaded(?LINE).
-
+    
 key_remove() ->
     key_remove(?DEFAULT_KEY).
 
