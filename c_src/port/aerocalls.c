@@ -119,6 +119,7 @@ int call_aerospike_init(const char *buf, int *index, int arity, int fd_out);
 int call_config_add_hosts(const char *buf, int *index, int arity, int fd_out);
 int call_port_status(const char *buf, int *index, int arity, int fd_out);
 
+int call_key_exists(const char *buf, int *index, int arity, int fd_out);
 int call_key_inc(const char *buf, int *index, int arity, int fd_out);
 int call_key_put(const char *buf, int *index, int arity, int fd_out);
 int call_key_remove(const char *buf, int *index, int arity, int fd_out);
@@ -200,6 +201,9 @@ int function_call(const char *buf, int *index, int arity, int fd_out) {
     }
     if (check_name(fname, "connect", arity, 3)) {
         return call_connect(buf, index, arity, fd_out);
+    }
+    if (check_name(fname, "key_exists", arity, 4)) {
+        return call_key_exists(buf, index, arity, fd_out);
     }
     if (check_name(fname, "key_inc", arity, 5)) {
         return call_key_inc(buf, index, arity, fd_out);
@@ -616,6 +620,47 @@ int call_key_remove(const char *buf, int *index, int arity, int fd_out) {
 	}
 
     OK("key_remove")
+
+    end:
+    POST
+}
+
+
+int call_key_exists(const char *buf, int *index, int arity, int fd_out) {
+    PRE
+
+    char namespace[MAX_NAMESPACE_SIZE];
+    char set[MAX_SET_SIZE];
+    char key_str[MAX_KEY_STR_SIZE];
+
+    if (ei_decode_string(buf, index, namespace) != 0) {
+        ERROR("invalid first argument: namespace")
+        goto end;
+    } 
+    if (ei_decode_string(buf, index, set) != 0) {
+        ERROR("invalid second argument: set")
+        goto end;
+    } 
+    if (ei_decode_string(buf, index, key_str) != 0) {
+        ERROR("invalid third argument: key_str")
+        goto end;
+    } 
+
+    CHECK_ALL
+
+    as_key key;
+	as_key_init_str(&key, namespace, set, key_str);
+    as_record* p_rec = NULL;
+	as_error err;
+    
+    int as_rc = aerospike_key_exists(&as, &err, NULL, &key, &p_rec);
+
+	if (as_rc != AEROSPIKE_OK) {
+        ERROR(err.message)
+        goto end;
+	}
+
+    OK("true")
 
     end:
     POST

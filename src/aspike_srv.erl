@@ -50,6 +50,9 @@
     cluster_info/0,
     host_add/0,
     host_add/2,
+    key_exists/0,
+    key_exists/1,
+    key_exists/3,
     key_inc/0,
     key_inc/1,
     key_inc/2,
@@ -135,6 +138,16 @@ connect() ->
 connect(User, Pwd) when is_list(User); is_list(Pwd) ->
     command({connect, User, Pwd}).
 
+
+key_exists() ->
+    key_exists(?DEFAULT_KEY).
+
+key_exists(Key) ->
+    key_exists(?DEFAULT_NAMESPACE, ?DEFAULT_SET, Key).
+
+key_exists(Namespace, Set, Key) ->
+    command({key_exists, Namespace, Set, Key}).
+        
 key_inc() ->
     key_inc([{"p-bin-111", 1}, {"p-bin-112", 10}, {"p-bin-113", -1}]).
 
@@ -168,8 +181,8 @@ key_remove(Key) ->
     key_remove(?DEFAULT_NAMESPACE, ?DEFAULT_SET, Key).
 
 -spec key_remove(string(), string(), string()) -> {ok, string()} | {error, string()}.
-key_remove(Namespace, Set, KeyStr) when is_list(Namespace); is_list(Set); is_list(KeyStr) ->
-    command({key_remove, Namespace, Set, KeyStr}).
+key_remove(Namespace, Set, Key) when is_list(Namespace); is_list(Set); is_list(Key) ->
+    command({key_remove, Namespace, Set, Key}).
 
 key_get() ->
     key_get(?DEFAULT_KEY).
@@ -178,8 +191,8 @@ key_get(Key) ->
     key_get(?DEFAULT_NAMESPACE, ?DEFAULT_SET, Key).
 
 -spec key_get(string(), string(), string()) -> {ok, string()} | {error, string()}.
-key_get(Namespace, Set, KeyStr) when is_list(Namespace); is_list(Set); is_list(KeyStr) ->
-    command({key_get, Namespace, Set, KeyStr}).
+key_get(Namespace, Set, Key) when is_list(Namespace); is_list(Set); is_list(Key) ->
+    command({key_get, Namespace, Set, Key}).
 
 key_generation() ->
     key_generation(?DEFAULT_KEY).
@@ -188,8 +201,8 @@ key_generation(Key) ->
     key_generation(?DEFAULT_NAMESPACE, ?DEFAULT_SET, Key).
 
 -spec key_generation(string(), string(), string()) -> {ok, string()} | {error, string()}.
-key_generation(Namespace, Set, KeyStr) when is_list(Namespace); is_list(Set); is_list(KeyStr) ->
-    command({key_generation, Namespace, Set, KeyStr}).
+key_generation(Namespace, Set, Key) when is_list(Namespace); is_list(Set); is_list(Key) ->
+    command({key_generation, Namespace, Set, Key}).
 
 -spec config_info() -> {ok, map()} | {error, term()}.
 config_info() ->

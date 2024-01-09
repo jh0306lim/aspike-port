@@ -10,6 +10,9 @@
     host_add/2,
     connect/0,
     connect/2,
+    key_exists/0,
+    key_exists/1,
+    key_exists/3,
     key_inc/0,
     key_inc/1,
     key_inc/2,
@@ -49,6 +52,7 @@
     as_init/0,
     host_add/2,
     connect/2,
+    key_exists/3,
     key_inc/4,
     key_put/4,
     key_remove/3,
@@ -148,6 +152,15 @@ key_generation(Key) ->
 key_generation(_, _, _) ->
     not_loaded(?LINE).
 
+key_exists() ->
+    key_exists(?DEFAULT_KEY).
+
+key_exists(Key) ->
+    key_exists(?DEFAULT_NAMESPACE, ?DEFAULT_SET, Key).
+
+key_exists(_, _, _) ->
+    not_loaded(?LINE).
+    
 node_random() ->
     not_loaded(?LINE).
 
