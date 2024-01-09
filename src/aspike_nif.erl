@@ -17,19 +17,23 @@
     key_inc/1,
     key_inc/2,
     key_inc/4,
-    key_put/0,
-    key_put/1,
-    key_put/2,
-    key_put/4,
-    key_remove/0,
-    key_remove/1,
-    key_remove/3,
     key_get/0,
     key_get/1,
     key_get/3,
     key_generation/0,
     key_generation/1,
     key_generation/3,
+    key_put/0,
+    key_put/1,
+    key_put/2,
+    key_put/4,
+    key_select/0,
+    key_select/1,
+    key_select/2,
+    key_select/4,
+    key_remove/0,
+    key_remove/1,
+    key_remove/3,
     mk_args/2,
     node_random/0,
     node_names/0,
@@ -54,10 +58,11 @@
     connect/2,
     key_exists/3,
     key_inc/4,
-    key_put/4,
-    key_remove/3,
     key_get/3,
     key_generation/3,
+    key_put/4,
+    key_remove/3,
+    key_select/4,
     node_random/0,
     node_names/0,
     node_get/1,
@@ -132,6 +137,18 @@ key_remove(Key) ->
     key_remove(?DEFAULT_NAMESPACE, ?DEFAULT_SET, Key).
 
 key_remove(_, _, _) ->
+    not_loaded(?LINE).
+
+key_select() ->
+    key_select(["n-bin-111", "n-bin-112", "n-bin-113"]).
+
+key_select(Lst) ->
+    key_select(?DEFAULT_KEY, Lst).
+
+key_select(Key, Lst) ->
+    key_select(?DEFAULT_NAMESPACE, ?DEFAULT_SET, Key, Lst).
+
+key_select(_, _, _, _) ->
     not_loaded(?LINE).
 
 key_get() ->

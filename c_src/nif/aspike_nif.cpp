@@ -234,15 +234,12 @@ static ERL_NIF_TERM key_inc(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[])
 
 	as_error err;
     as_key key;
-	// as_record rec;
-
 	as_key_init_str(&key, name_space, set, key_str);
-	// as_record_inita(&rec, length);
-
+	
     as_operations ops;
 	as_operations_inita(&ops, length);
 
-    for (int i = 0; i < length; i++) {
+    for (uint i = 0; i < length; i++) {
         ERL_NIF_TERM head;
         ERL_NIF_TERM tail;
         char bin[AS_BIN_NAME_MAX_SIZE] = {0};
@@ -473,6 +470,73 @@ static ERL_NIF_TERM key_get(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[])
     msg = dump_records(env, p_rec);
     rc = erl_ok;
 
+    return enif_make_tuple2(env, rc, msg);
+}
+
+static ERL_NIF_TERM key_select(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[])
+{
+    char name_space[MAX_NAMESPACE_SIZE];
+    char set[MAX_SET_SIZE];
+    char key_str[MAX_KEY_STR_SIZE];
+    unsigned int length;
+
+    if (!enif_get_string(env, argv[0], name_space, MAX_NAMESPACE_SIZE, ERL_NIF_UTF8)) {
+	    return enif_make_badarg(env);
+    }
+    if (!enif_get_string(env, argv[1], set, MAX_SET_SIZE, ERL_NIF_UTF8)) {
+	    return enif_make_badarg(env);
+    }
+    if (!enif_get_string(env, argv[2], key_str, MAX_KEY_STR_SIZE, ERL_NIF_UTF8)) {
+	    return enif_make_badarg(env);
+    }
+    ERL_NIF_TERM list = argv[3];
+    if (!enif_is_list(env, list) || !enif_get_list_length(env, list, &length)) {
+	    return enif_make_badarg(env);
+    }
+    CHECK_ALL
+
+    ERL_NIF_TERM rc, msg;
+
+    if(length == 0) {
+        msg = enif_make_list(env, 0);  // empty list
+        rc = erl_ok;
+        return enif_make_tuple2(env, rc, msg);
+    }
+
+    const char *bins[1024];
+    uint i = 0;
+    for (; i < length; i++) {
+        ERL_NIF_TERM head;
+        ERL_NIF_TERM tail;
+        char bin[AS_BIN_NAME_MAX_SIZE] = {0};
+        if (!enif_get_list_cell(env, list, &head, &tail)) {
+            break;
+        }
+        if(!enif_get_string(env, head, bin, MAX_KEY_STR_SIZE, ERL_NIF_UTF8)){
+            break;
+        }
+        bins[i] = strdup(bin);
+        list = tail;
+    }
+    bins[i] = NULL;
+
+	as_error err;
+    as_key key;
+	as_key_init_str(&key, name_space, set, key_str);
+    as_record* p_rec = NULL;
+
+    if (aerospike_key_select(&as, &err, NULL, &key, bins, &p_rec)  != AEROSPIKE_OK) {
+        rc = erl_error;
+        msg = enif_make_string(env, err.message, ERL_NIF_UTF8);
+        return enif_make_tuple2(env, rc, msg);
+    }
+
+    msg = dump_records(env, p_rec);
+    rc = erl_ok;
+    for (uint j = 0; j < i; j++) {
+        delete(bins[j]);
+    }
+    
     return enif_make_tuple2(env, rc, msg);
 }
 
@@ -781,10 +845,11 @@ static ErlNifFunc nif_funcs[] = {
     NIF_FUN("connect", 2, connect),
     NIF_FUN("key_exists", 3, key_exists),
     NIF_FUN("key_inc", 4, key_inc),
-    NIF_FUN("key_put", 4, key_put),
-    NIF_FUN("key_remove", 3, key_remove),
     NIF_FUN("key_get", 3, key_get),
     NIF_FUN("key_generation", 3, key_generation),
+    NIF_FUN("key_put", 4, key_put),
+    NIF_FUN("key_remove", 3, key_remove),
+    NIF_FUN("key_select", 4, key_select),
     NIF_FUN("node_random", 0, node_random),
     NIF_FUN("node_names", 0, node_names),
     NIF_FUN("node_get", 1, node_get),
