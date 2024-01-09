@@ -168,7 +168,7 @@ static ERL_NIF_TERM key_put(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[])
 	as_record_inita(&rec, length);
 
     
-    for (int i = 0; i < length; i++) {
+    for (uint i = 0; i < length; i++) {
         ERL_NIF_TERM head;
         ERL_NIF_TERM tail;
         char bin[AS_BIN_NAME_MAX_SIZE] = {0};
@@ -326,7 +326,7 @@ static ERL_NIF_TERM a_key_put(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[
     clock_gettime(CLOCK_THREAD_CPUTIME_ID, &thread_start);
     clock_gettime(CLOCK_REALTIME, &real_start);
 
-    for (int i=0; i < n; i++) {
+    for (uint i=0; i < n; i++) {
         if (aerospike_key_put(&as, &err, NULL, &key, &rec)  != AEROSPIKE_OK) {
             rc = erl_error;
             msg = enif_make_string(env, err.message, ERL_NIF_UTF8);
