@@ -636,6 +636,7 @@ int call_key_exists(const char *buf, int *index, int arity, int fd_out) {
     char namespace[MAX_NAMESPACE_SIZE];
     char set[MAX_SET_SIZE];
     char key_str[MAX_KEY_STR_SIZE];
+    as_record* p_rec = NULL;
 
     if (ei_decode_string(buf, index, namespace) != 0) {
         ERROR("invalid first argument: namespace")
@@ -654,7 +655,6 @@ int call_key_exists(const char *buf, int *index, int arity, int fd_out) {
 
     as_key key;
 	as_key_init_str(&key, namespace, set, key_str);
-    as_record* p_rec = NULL;
 	as_error err;
     
     int as_rc = aerospike_key_exists(&as, &err, NULL, &key, &p_rec);
@@ -667,6 +667,9 @@ int call_key_exists(const char *buf, int *index, int arity, int fd_out) {
     OK("true")
 
     end:
+    if (p_rec != NULL) {
+        as_record_destroy(p_rec);
+    }
     POST
 }
 
@@ -901,6 +904,9 @@ int call_node_names(const char *buf, int *index, int arity, int fd_out) {
         ei_x_encode_string(&res_buf, &node_names[i]);
     }
     ei_x_encode_empty_list(&res_buf);
+    for(int i = 0; i < n_nodes; i++) {
+        free(&node_names[i]);
+    }
 
     end:
     POST

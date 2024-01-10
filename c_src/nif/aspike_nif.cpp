@@ -458,6 +458,9 @@ static ERL_NIF_TERM key_get(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[])
 	as_key_init_str(&key, name_space, set, key_str);
 
     if (aerospike_key_get(&as, &err, NULL, &key, &p_rec)  != AEROSPIKE_OK) {
+        if (p_rec != NULL) {
+            as_record_destroy(p_rec);
+        }
         rc = erl_error;
         msg = enif_make_string(env, err.message, ERL_NIF_UTF8);
         return enif_make_tuple2(env, rc, msg);
@@ -470,7 +473,9 @@ static ERL_NIF_TERM key_get(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[])
 
     msg = dump_records(env, p_rec);
     rc = erl_ok;
-
+    if (p_rec != NULL) {
+        as_record_destroy(p_rec);
+    }
     return enif_make_tuple2(env, rc, msg);
 }
 
@@ -586,7 +591,7 @@ static ERL_NIF_TERM key_generation(ErlNifEnv* env, int argc, const ERL_NIF_TERM 
     vals[1] = enif_make_uint64(env, p_rec->ttl);
     enif_make_map_from_arrays(env, keys, vals, 2, &msg);
     rc = erl_ok;
-
+    as_record_destroy(p_rec);
     return enif_make_tuple2(env, rc, msg);
 }
 
@@ -622,7 +627,9 @@ static ERL_NIF_TERM key_exists(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv
     }
     rc = erl_ok;
     static ERL_NIF_TERM tr = enif_make_atom(env, "true");
-
+    if (p_rec != NULL) {
+        as_record_destroy(p_rec);
+    }
     return enif_make_tuple2(env, rc, tr);
 }
 
@@ -659,6 +666,9 @@ static ERL_NIF_TERM node_names(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv
     rc = erl_ok;
     msg = enif_make_list_from_array(env, lst, n_nodes);
     enif_free(lst);
+    for(int i = 0; i < n_nodes; i++) {
+        delete(&node_names[i]);
+    }
 
     return enif_make_tuple2(env, rc, msg);   
 }
