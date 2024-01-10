@@ -22,7 +22,7 @@
 #define MAX_NAMESPACE_SIZE 32	// based on current server limit
 #define MAX_SET_SIZE 64			// based on current server limit
 #define AS_BIN_NAME_MAX_SIZE 16
-// #define AS_NODE_NAME_MAX_SIZE 16
+#define MAX_BINS_NUMBER 1024
 
 const char DEFAULT_HOST[] = "127.0.0.1";
 // const int DEFAULT_PORT = 3000;
@@ -121,10 +121,11 @@ int call_port_status(const char *buf, int *index, int arity, int fd_out);
 
 int call_key_exists(const char *buf, int *index, int arity, int fd_out);
 int call_key_inc(const char *buf, int *index, int arity, int fd_out);
-int call_key_put(const char *buf, int *index, int arity, int fd_out);
-int call_key_remove(const char *buf, int *index, int arity, int fd_out);
 int call_key_get(const char *buf, int *index, int arity, int fd_out);
 int call_key_generation(const char *buf, int *index, int arity, int fd_out);
+int call_key_put(const char *buf, int *index, int arity, int fd_out);
+int call_key_remove(const char *buf, int *index, int arity, int fd_out);
+int call_key_select(const char *buf, int *index, int arity, int fd_out);
 
 int call_node_random(const char *buf, int *index, int arity, int fd_out);
 int call_node_names(const char *buf, int *index, int arity, int fd_out);
@@ -208,17 +209,20 @@ int function_call(const char *buf, int *index, int arity, int fd_out) {
     if (check_name(fname, "key_inc", arity, 5)) {
         return call_key_inc(buf, index, arity, fd_out);
     }
+    if (check_name(fname, "key_get", arity, 4)) {
+        return call_key_get(buf, index, arity, fd_out);
+    }
+    if (check_name(fname, "key_generation", arity, 4)) {
+        return call_key_generation(buf, index, arity, fd_out);
+    }
     if (check_name(fname, "key_put", arity, 5)) {
         return call_key_put(buf, index, arity, fd_out);
     }
     if (check_name(fname, "key_remove", arity, 4)) {
         return call_key_remove(buf, index, arity, fd_out);
     }
-    if (check_name(fname, "key_get", arity, 4)) {
-        return call_key_get(buf, index, arity, fd_out);
-    }
-    if (check_name(fname, "key_generation", arity, 4)) {
-        return call_key_generation(buf, index, arity, fd_out);
+    if (check_name(fname, "key_select", arity, 5)) {
+        return call_key_select(buf, index, arity, fd_out);
     }
     if (check_name(fname, "node_random", arity, 1)) {
         return call_node_random(buf, index, arity, fd_out);
@@ -750,6 +754,72 @@ int call_key_get(const char *buf, int *index, int arity, int fd_out) {
     end:
     if (p_rec != NULL) {
         as_record_destroy(p_rec);
+    }
+
+    POST
+}
+int call_key_select(const char *buf, int *index, int arity, int fd_out) {
+    PRE
+
+    char namespace[MAX_NAMESPACE_SIZE];
+    char set[MAX_SET_SIZE];
+    char key_str[MAX_KEY_STR_SIZE];
+    as_record* p_rec = NULL;    
+    int length;
+    const char *bins[MAX_BINS_NUMBER];
+    int i = 0;
+
+    if (ei_decode_string(buf, index, namespace) != 0) {
+        ERROR("invalid first argument: namespace")
+        goto end;
+    } 
+    if (ei_decode_string(buf, index, set) != 0) {
+        ERROR("invalid second argument: set")
+        goto end;
+    } 
+    if (ei_decode_string(buf, index, key_str) != 0) {
+        ERROR("invalid third argument: key_str")
+        goto end;
+    } 
+    if (ei_decode_list_header(buf, index, &length) != 0) {
+        ERROR("invalid fourth argument: list")
+        goto end;
+    }
+
+    CHECK_ALL
+    if (length == 0) {
+        OK0
+        res = ei_x_encode_empty_list(&res_buf);
+        goto end;
+    }
+
+    for (; i < length; i++) {
+        char bin[AS_BIN_NAME_MAX_SIZE] = {0};
+        if (ei_decode_string(buf, index, bin) != 0) {
+            ERROR("invalid bin")
+            goto end;
+        }
+        bins[i] = strdup(bin);
+    }
+    bins[i] = NULL;
+
+    as_key key;
+	as_key_init_str(&key, namespace, set, key_str);
+	as_error err;
+
+    if (aerospike_key_select(&as, &err, NULL, &key, bins, &p_rec)  != AEROSPIKE_OK) {
+        ERROR(err.message)
+        goto end;
+    }
+
+    res = dump_records(&res_buf, p_rec);
+
+    end:
+    if (p_rec != NULL) {
+        as_record_destroy(p_rec);
+    }
+    for (int j = 0; j < i; j++) {
+        free((void *)bins[j]);
     }
 
     POST

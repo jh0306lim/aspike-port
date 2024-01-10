@@ -22,6 +22,7 @@
 #define MAX_NAMESPACE_SIZE 32	// based on current server limit
 #define MAX_SET_SIZE 64			// based on current server limit
 #define AS_BIN_NAME_MAX_SIZE 16
+#define MAX_BINS_NUMBER 1024
 
 #define USE_DIRTY 1
 #ifdef USE_DIRTY
@@ -478,7 +479,9 @@ static ERL_NIF_TERM key_select(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv
     char name_space[MAX_NAMESPACE_SIZE];
     char set[MAX_SET_SIZE];
     char key_str[MAX_KEY_STR_SIZE];
-    unsigned int length;
+    unsigned int length = 0;
+    unsigned int i = 0;
+    as_record* p_rec = NULL;
 
     if (!enif_get_string(env, argv[0], name_space, MAX_NAMESPACE_SIZE, ERL_NIF_UTF8)) {
 	    return enif_make_badarg(env);
@@ -497,14 +500,13 @@ static ERL_NIF_TERM key_select(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv
 
     ERL_NIF_TERM rc, msg;
 
-    if(length == 0) {
+    if (length == 0) {
         msg = enif_make_list(env, 0);  // empty list
         rc = erl_ok;
         return enif_make_tuple2(env, rc, msg);
     }
 
-    const char *bins[1024];
-    uint i = 0;
+    const char *bins[MAX_BINS_NUMBER];
     for (; i < length; i++) {
         ERL_NIF_TERM head;
         ERL_NIF_TERM tail;
@@ -523,7 +525,6 @@ static ERL_NIF_TERM key_select(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv
 	as_error err;
     as_key key;
 	as_key_init_str(&key, name_space, set, key_str);
-    as_record* p_rec = NULL;
 
     if (aerospike_key_select(&as, &err, NULL, &key, bins, &p_rec)  != AEROSPIKE_OK) {
         rc = erl_error;
@@ -536,7 +537,10 @@ static ERL_NIF_TERM key_select(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv
     for (uint j = 0; j < i; j++) {
         delete(bins[j]);
     }
-    
+    if (p_rec != NULL) {
+        as_record_destroy(p_rec);
+    }
+
     return enif_make_tuple2(env, rc, msg);
 }
 

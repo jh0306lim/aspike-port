@@ -57,19 +57,23 @@
     key_inc/1,
     key_inc/2,
     key_inc/4,
-    key_put/0,
-    key_put/1,
-    key_put/2,
-    key_put/4,
-    key_remove/0,
-    key_remove/1,
-    key_remove/3,
     key_get/0,
     key_get/1,
     key_get/3,
     key_generation/0,
     key_generation/1,
     key_generation/3,
+    key_put/0,
+    key_put/1,
+    key_put/2,
+    key_put/4,
+    key_select/0,
+    key_select/1,
+    key_select/2,
+    key_select/4,
+    key_remove/0,
+    key_remove/1,
+    key_remove/3,
     node_random/0,
     node_names/0,
     node_get/1,
@@ -183,6 +187,18 @@ key_remove(Key) ->
 -spec key_remove(string(), string(), string()) -> {ok, string()} | {error, string()}.
 key_remove(Namespace, Set, Key) when is_list(Namespace); is_list(Set); is_list(Key) ->
     command({key_remove, Namespace, Set, Key}).
+
+key_select() ->
+    key_select(["p-bin-111", "p-bin-112", "p-bin-113"]).
+
+key_select(Lst) ->
+    key_select(?DEFAULT_KEY, Lst).
+
+key_select(Key, Lst) ->
+    key_select(?DEFAULT_NAMESPACE, ?DEFAULT_SET, Key, Lst).
+
+key_select(Namespace, Set, Key, Lst) ->
+    command({key_select, Namespace, Set, Key, Lst}).
 
 key_get() ->
     key_get(?DEFAULT_KEY).
