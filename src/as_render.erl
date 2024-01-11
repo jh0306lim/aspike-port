@@ -2,6 +2,8 @@
 
 -export([info_render/2]).
 
+% @doc Butifies different help function results
+-spec info_render({error | ok, string()}, string()) -> {error, string()} | {ok, map()}.
 info_render(Res = {error, _}, _) ->
     Res;
 info_render({ok, Info}, Item) ->

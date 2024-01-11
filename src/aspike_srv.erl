@@ -118,10 +118,13 @@ start() ->
 start_link() ->
     gen_server:start_link({local, ?MODULE}, ?MODULE, utils:find_lib(?LIBNAME), []).
 
+% @doc This function is used to execute all other call.
 -spec command(term()) -> term().
 command(Cmd) ->
     gen_server:call(?MODULE, {command, Cmd}, ?DEFAULT_TIMEOUT + 10).
 
+% @doc Initialises port (c level) global variables.
+% Is called automatically during init
 -spec aerospike_init() -> {ok, string()} | {error, string()}.
 aerospike_init() ->
     command({aerospike_init}).
@@ -130,6 +133,7 @@ aerospike_init() ->
 host_add() ->
     host_add(?DEFAULT_HOST, ?DEFAULT_PORT).
 
+% @doc Adds host's address and port; they will be used to establish connection
 -spec host_add(string(), non_neg_integer()) -> {ok, string()} | {error, string()}.
 host_add(Host, Port) when is_list(Host); is_integer(Port) ->
     command({host_add, Host, Port}).
@@ -138,10 +142,10 @@ host_add(Host, Port) when is_list(Host); is_integer(Port) ->
 connect() ->
     connect(?DEFAULT_USER, ?DEFAULT_PSW).
 
+% @doc Create connection using User and PWd credential
 -spec connect(string(), string()) -> {ok, string()} | {error, string()}.
 connect(User, Pwd) when is_list(User); is_list(Pwd) ->
     command({connect, User, Pwd}).
-
 
 key_exists() ->
     key_exists(?DEFAULT_KEY).
@@ -149,9 +153,11 @@ key_exists() ->
 key_exists(Key) ->
     key_exists(?DEFAULT_NAMESPACE, ?DEFAULT_SET, Key).
 
-key_exists(Namespace, Set, Key) ->
+% @doc Checks if Key exists in Namesplace Set
+-spec key_exists(string(), string(), string()) -> {ok, string()} | {error, string()}.
+key_exists(Namespace, Set, Key) when is_list(Namespace), is_list(Set), is_list(Key) ->
     command({key_exists, Namespace, Set, Key}).
-        
+
 key_inc() ->
     key_inc([{"p-bin-111", 1}, {"p-bin-112", 10}, {"p-bin-113", -1}]).
 
@@ -161,7 +167,12 @@ key_inc(Lst) ->
 key_inc(Key, Lst) ->
     key_inc(?DEFAULT_NAMESPACE, ?DEFAULT_SET, Key, Lst).
 
-key_inc(Namespace, Set, Key, Lst) ->
+% Changes values of Bin by Val for Key in Namespace Set; here Lst is a list of tuples [{Bin, Val}].
+-spec key_inc(string(), string(), string(), [{string(), integer()}]) ->
+    {ok, string()} | {error, string()}.
+key_inc(Namespace, Set, Key, Lst) when
+    is_list(Namespace), is_list(Set), is_list(Key), is_list(Lst)
+->
     command({key_inc, Namespace, Set, Key, Lst}).
 
 key_put() ->
@@ -173,9 +184,12 @@ key_put(Lst) ->
 key_put(Key, Lst) ->
     key_put(?DEFAULT_NAMESPACE, ?DEFAULT_SET, Key, Lst).
 
+% Sets values of Bin to Val for Key in Namespace Set; here Lst is a list of tuples [{Bin, Val}].
 -spec key_put(string(), string(), string(), [{string(), integer()}]) ->
     {ok, string()} | {error, string()}.
-key_put(Namespace, Set, Key, Lst) when is_list(Lst) ->
+key_put(Namespace, Set, Key, Lst) when
+    is_list(Namespace), is_list(Set), is_list(Key), is_list(Lst)
+->
     command({key_put, Namespace, Set, Key, Lst}).
 
 key_remove() ->
@@ -184,8 +198,9 @@ key_remove() ->
 key_remove(Key) ->
     key_remove(?DEFAULT_NAMESPACE, ?DEFAULT_SET, Key).
 
+% @doc Removes Key from  Namesplace Set
 -spec key_remove(string(), string(), string()) -> {ok, string()} | {error, string()}.
-key_remove(Namespace, Set, Key) when is_list(Namespace); is_list(Set); is_list(Key) ->
+key_remove(Namespace, Set, Key) when is_list(Namespace), is_list(Set), is_list(Key) ->
     command({key_remove, Namespace, Set, Key}).
 
 key_select() ->
@@ -197,7 +212,12 @@ key_select(Lst) ->
 key_select(Key, Lst) ->
     key_select(?DEFAULT_NAMESPACE, ?DEFAULT_SET, Key, Lst).
 
-key_select(Namespace, Set, Key, Lst) ->
+% Gets value of Bin for Key in Namespace Set; here Lst is a list of [Bin].
+-spec key_select(string(), string(), string(), [string()]) ->
+    {ok, [{string(), term()}]} | {error, string()}.
+key_select(Namespace, Set, Key, Lst) when
+    is_list(Namespace), is_list(Set), is_list(Key), is_list(Lst)
+->
     command({key_select, Namespace, Set, Key, Lst}).
 
 key_get() ->
@@ -206,8 +226,9 @@ key_get() ->
 key_get(Key) ->
     key_get(?DEFAULT_NAMESPACE, ?DEFAULT_SET, Key).
 
--spec key_get(string(), string(), string()) -> {ok, string()} | {error, string()}.
-key_get(Namespace, Set, Key) when is_list(Namespace); is_list(Set); is_list(Key) ->
+% Gets values of all Bin for Key in Namespace Set.
+-spec key_get(string(), string(), string()) -> {ok, [{string(), term()}]} | {error, string()}.
+key_get(Namespace, Set, Key) when is_list(Namespace), is_list(Set), is_list(Key) ->
     command({key_get, Namespace, Set, Key}).
 
 key_generation() ->
@@ -216,58 +237,74 @@ key_generation() ->
 key_generation(Key) ->
     key_generation(?DEFAULT_NAMESPACE, ?DEFAULT_SET, Key).
 
--spec key_generation(string(), string(), string()) -> {ok, string()} | {error, string()}.
-key_generation(Namespace, Set, Key) when is_list(Namespace); is_list(Set); is_list(Key) ->
+% Gets Generation number and TTL for Key in Namespace Set.
+-spec key_generation(string(), string(), string()) -> {ok, map()} | {error, string()}.
+key_generation(Namespace, Set, Key) when is_list(Namespace), is_list(Set), is_list(Key) ->
     command({key_generation, Namespace, Set, Key}).
 
+% @doc Returns aerospike configuration
 -spec config_info() -> {ok, map()} | {error, term()}.
 config_info() ->
     command({config_info}).
 
+% @doc Returns aerospike cluster configuration
 -spec cluster_info() -> {ok, map()} | {error, term()}.
 cluster_info() ->
     command({cluster_info}).
 
+% @doc Returns random node in form "Address:Port", for example: "127.0.0.1:3010"
 -spec node_random() -> {ok, string()} | {error, term()}.
 node_random() ->
     command({node_random}).
 
+% @doc Returns list of node names.
 -spec node_names() -> {ok, [string()]} | {error, term()}.
 node_names() ->
     command({node_names}).
 
+% @doc Returns node in form "Address:Port", for example: "127.0.0.1:3010"
 -spec node_get(string()) -> {ok, string()} | {error, term()}.
-node_get(NodeName) ->
+node_get(NodeName) when is_list(NodeName) ->
     command({node_get, NodeName}).
 
--spec node_info(string(), string()) -> {ok, [string()]} | {error, term()}.
-node_info(NodeName, Item) ->
+% @doc Returns information about Item for NodeName
+% Useful Items:
+% "bins", "sets", "node", "namespaces", "udf-list", "sindex-list:", "edition", "get-config"
+-spec node_info(string(), string()) -> {ok, {string(), map()}} | {error, string()}.
+node_info(NodeName, Item) when is_list(NodeName), is_list(Item) ->
     as_render:info_render(command({node_info, NodeName, Item}), Item).
-
--spec host_info(string()) -> {ok, [string()]} | {error, string()}.
-host_info(Item) ->
-    host_info(?DEFAULT_HOST, ?DEFAULT_PORT, Item).
-
--spec host_info(string(), non_neg_integer(), string()) -> {ok, [string()]} | {error, term()}.
-host_info(HostName, Port, Item) ->
-    as_render:info_render(command({host_info, HostName, Port, Item}), Item).
-
--spec port_status() -> {ok, map()} | {error, term()}.
-port_status() ->
-    command({port_status}).
 
 -spec help() -> {ok, string()} | {error, term()}.
 help() -> help("namespaces").
 
-% -spec help("bins" | "sets" | "node" | "namespaces" | "udf-list" | "sindex-list:" | "edition" | "get-config:context=namespace;id=test", "get-config") ->
-% {ok, string()} | {error, term()}.
--spec help(string()) -> {ok, string()} | {error, term()}.
-help(Item) ->
+% @doc Returns information about Item.
+% Useful Items:
+% "bins", "sets", "node", "namespaces", "udf-list", "sindex-list:", "edition", "get-config"
+-spec help(string()) -> {ok, {string(), map()}} | {error, string()}.
+help(Item) when is_list(Item) ->
     as_render:info_render(command({help, Item}), Item).
 
+-spec host_info(string()) -> {ok, {string(), map()}} | {error, string()}.
+host_info(Item) ->
+    host_info(?DEFAULT_HOST, ?DEFAULT_PORT, Item).
+
+% @doc @doc Returns information about Item for HostName, Port
+% Useful Items:
+% "bins", "sets", "node", "namespaces", "udf-list", "sindex-list:", "edition", "get-config"
+-spec host_info(string(), non_neg_integer(), string()) ->
+    {ok, {string(), map()}} | {error, string()}.
+host_info(HostName, Port, Item) when is_list(HostName), is_integer(Port), is_list(Item) ->
+    as_render:info_render(command({host_info, HostName, Port, Item}), Item).
+
+% @doc Returns information about Erlang PORT
 -spec port_info() -> [tuple()] | undefined.
 port_info() ->
     gen_server:call(?MODULE, port_info).
+
+% @doc Returns status of aspike_port
+-spec port_status() -> {ok, map()} | {error, term()}.
+port_status() ->
+    command({port_status}).
 
 -spec foo(integer()) -> {ok, integer()} | {error, term()}.
 foo(X) when is_integer(X) ->

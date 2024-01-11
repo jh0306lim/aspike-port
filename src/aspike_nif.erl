@@ -96,14 +96,28 @@ as_init() ->
 host_add() ->
     host_add(?DEFAULT_HOST, ?DEFAULT_PORT).
 
+% @doc Adds host's address and port; they will be used to establish connection
 -spec host_add(string(), non_neg_integer()) -> {ok, string()} | {error, string()}.
-host_add(_, _) ->
+host_add(Host, Port) when is_list(Host), is_integer(Port) ->
     not_loaded(?LINE).
 
 connect() ->
     connect(?DEFAULT_USER, ?DEFAULT_PSW).
 
+% @doc Create connection using User and PWd credential
+-spec connect(string(), string()) -> {ok, string()} | {error, string()}.
 connect(_, _) ->
+    not_loaded(?LINE).
+
+key_exists() ->
+    key_exists(?DEFAULT_KEY).
+
+key_exists(Key) ->
+    key_exists(?DEFAULT_NAMESPACE, ?DEFAULT_SET, Key).
+
+% @doc Checks if Key exists in Namesplace Set
+-spec key_exists(string(), string(), string()) -> {ok, string()} | {error, string()}.
+key_exists(Namespace, Set, Key) when is_list(Namespace), is_list(Set), is_list(Key) ->
     not_loaded(?LINE).
 
 key_inc() ->
@@ -115,7 +129,12 @@ key_inc(Lst) ->
 key_inc(Key, Lst) ->
     key_inc(?DEFAULT_NAMESPACE, ?DEFAULT_SET, Key, Lst).
 
-key_inc(_, _, _, _) ->
+% Changes value ob Bin by Val for Key in Namespace Set; here Lst is a list of tuples [{Bin, Val}].
+-spec key_inc(string(), string(), string(), [{string(), integer()}]) ->
+    {ok, string()} | {error, string()}.
+key_inc(Namespace, Set, Key, Lst) when
+    is_list(Namespace), is_list(Set), is_list(Key), is_list(Lst)
+->
     not_loaded(?LINE).
 
 key_put() ->
@@ -127,16 +146,23 @@ key_put(Lst) ->
 key_put(Key, Lst) ->
     key_put(?DEFAULT_NAMESPACE, ?DEFAULT_SET, Key, Lst).
 
-key_put(_, _, _, _) ->
+% Sets values of Bin to Val for Key in Namespace Set; here Lst is a list of tuples [{Bin, Val}].
+-spec key_put(string(), string(), string(), [{string(), integer()}]) ->
+    {ok, string()} | {error, string()}.
+key_put(Namespace, Set, Key, Lst) when
+    is_list(Namespace), is_list(Set), is_list(Key), is_list(Lst)
+->
     not_loaded(?LINE).
-    
+
 key_remove() ->
     key_remove(?DEFAULT_KEY).
 
 key_remove(Key) ->
     key_remove(?DEFAULT_NAMESPACE, ?DEFAULT_SET, Key).
 
-key_remove(_, _, _) ->
+% @doc Removes Key from  Namesplace Set
+-spec key_remove(string(), string(), string()) -> {ok, string()} | {error, string()}.
+key_remove(Namespace, Set, Key) when is_list(Namespace); is_list(Set); is_list(Key) ->
     not_loaded(?LINE).
 
 key_select() ->
@@ -148,7 +174,12 @@ key_select(Lst) ->
 key_select(Key, Lst) ->
     key_select(?DEFAULT_NAMESPACE, ?DEFAULT_SET, Key, Lst).
 
-key_select(_, _, _, _) ->
+% Gets value of Bin for Key in Namespace Set; here Lst is a list of [Bin].
+-spec key_select(string(), string(), string(), [string()]) ->
+    {ok, [{string(), term()}]} | {error, string()}.
+key_select(Namespace, Set, Key, Lst) when
+    is_list(Namespace), is_list(Set), is_list(Key), is_list(Lst)
+->
     not_loaded(?LINE).
 
 key_get() ->
@@ -157,7 +188,9 @@ key_get() ->
 key_get(Key) ->
     key_get(?DEFAULT_NAMESPACE, ?DEFAULT_SET, Key).
 
-key_get(_, _, _) ->
+% Gets values of all Bin for Key in Namespace Set.
+-spec key_get(string(), string(), string()) -> {ok, [{string(), term()}]} | {error, string()}.
+key_get(Namespace, Set, Key) when is_list(Namespace), is_list(Set), is_list(Key) ->
     not_loaded(?LINE).
 
 key_generation() ->
@@ -166,58 +199,71 @@ key_generation() ->
 key_generation(Key) ->
     key_generation(?DEFAULT_NAMESPACE, ?DEFAULT_SET, Key).
 
-key_generation(_, _, _) ->
+% Gets Generation number and TTL for Key in Namespace Set.
+-spec key_generation(string(), string(), string()) -> {ok, map()} | {error, string()}.
+key_generation(Namespace, Set, Key) when is_list(Namespace), is_list(Set), is_list(Key) ->
     not_loaded(?LINE).
 
-key_exists() ->
-    key_exists(?DEFAULT_KEY).
-
-key_exists(Key) ->
-    key_exists(?DEFAULT_NAMESPACE, ?DEFAULT_SET, Key).
-
-key_exists(_, _, _) ->
-    not_loaded(?LINE).
-    
+% @doc Returns random node in form "Address:Port", for example: "127.0.0.1:3010"
+-spec node_random() -> {ok, string()} | {error, term()}.
 node_random() ->
     not_loaded(?LINE).
 
+% @doc Returns list of node names.
+-spec node_names() -> {ok, [string()]} | {error, term()}.
 node_names() ->
     not_loaded(?LINE).
 
-node_get(_) ->
+% @doc Returns node in form "Address:Port", for example: "127.0.0.1:3010"
+-spec node_get(string()) -> {ok, string()} | {error, term()}.
+node_get(NodeName) when is_list(NodeName) ->
     not_loaded(?LINE).
 
--spec help() -> {ok, string()} | {error, term()}.
+% @doc Returns information about Item for NodeName
+% Useful Items:
+% "bins", "sets", "node", "namespaces", "udf-list", "sindex-list:", "edition", "get-config"
+-spec node_info(string(), string()) -> {ok, {string(), map()}} | {error, string()}.
+node_info(NodeName, Item) when is_list(NodeName), is_list(Item) ->
+    as_render:info_render(nif_node_info(NodeName, Item), Item).
+
+nif_node_info(_, _) ->
+    not_loaded(?LINE).
+
 help() ->
     help("namespaces").
 
-help(Item) ->
+% @doc Returns information about Item.
+% Useful Items:
+% "bins", "sets", "node", "namespaces", "udf-list", "sindex-list:", "edition", "get-config"
+-spec help(string()) -> {ok, {string(), map()}} | {error, string()}.
+help(Item) when is_list(Item) ->
     as_render:info_render(nif_help(Item), Item).
 
 nif_help(_) ->
-    not_loaded(?LINE).
-
-node_info(Node, Item) ->
-    as_render:info_render(nif_node_info(Node, Item), Item).
-
-nif_node_info(_, _) ->
     not_loaded(?LINE).
 
 -spec host_info(string()) -> {ok, [string()]} | {error, string()}.
 host_info(Item) ->
     host_info(?DEFAULT_HOST, ?DEFAULT_PORT, Item).
 
--spec host_info(string(), non_neg_integer(), string()) -> {ok, [string()]} | {error, term()}.
-host_info(HostName, Port, Item) ->
+% @doc @doc Returns information about Item for HostName, Port
+% Useful Items:
+% "bins", "sets", "node", "namespaces", "udf-list", "sindex-list:", "edition", "get-config"
+-spec host_info(string(), non_neg_integer(), string()) ->
+    {ok, {string(), map()}} | {error, string()}.
+host_info(HostName, Port, Item) when is_list(HostName), is_integer(Port), is_list(Item) ->
     as_render:info_render(nif_host_info(HostName, Port, Item), Item).
 
 nif_host_info(_, _, _) ->
     not_loaded(?LINE).
 
+% @doc Shortcut for testing
+-spec b() -> ok.
 b() ->
     as_init(),
     host_add(),
-    connect().
+    connect(),
+    ok.
 
 % @doc Used in ${tsl.erl} to create argument list for testin function
 -spec mk_args(atom(), non_neg_integer()) -> [term()].
