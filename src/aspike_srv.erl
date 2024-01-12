@@ -138,11 +138,11 @@ host_add() ->
     host_add(?DEFAULT_HOST, ?DEFAULT_PORT).
 
 % @doc Adds host's address and port; they will be used to establish connection
-% 
+%
 % Note (see https://discuss.aerospike.com/t/multiple-nics-in-the-aerospike-java-client/862):
-% 
-% The Host(s) passed in the AerospikeClient constructor is only used to request the server 
-% host list and populate the cluster map. 
+%
+% The Host(s) passed in the AerospikeClient constructor is only used to request the server
+% host list and populate the cluster map.
 % The multiple Hosts passed here are used only in case of network failure on the first one.
 -spec host_add(string(), non_neg_integer()) -> {ok, string()} | {error, string()}.
 host_add(Host, Port) when is_list(Host); is_integer(Port) ->
@@ -159,7 +159,7 @@ host_clear() ->
     command({host_clear}).
 
 % @doc Returns list of [{Hostname, TLSname, Port}]
-% 
+%
 %there is no TLS then TLSname =[]
 -spec host_list() -> {ok, [{string(), string(), non_neg_integer()}]}.
 host_list() ->

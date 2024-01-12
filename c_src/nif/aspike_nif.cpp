@@ -106,7 +106,7 @@ static ERL_NIF_TERM host_clear(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv
 {
     CHECK_INIT
     as_config_clear_hosts(&as.config);
-    ERL_NIF_TERM rc = erl_error;
+    ERL_NIF_TERM rc = erl_ok;
     ERL_NIF_TERM msg = enif_make_string(env, "hosts list was cleared", ERL_NIF_UTF8);
     return enif_make_tuple2(env, rc, msg);
 }
