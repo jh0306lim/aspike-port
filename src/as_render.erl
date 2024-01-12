@@ -37,7 +37,8 @@ set_render([R | Tail]) ->
     [Z | set_render(Tail)].
 
 bins_render(Bins) ->
-    bin_render([string:split(B, ",", all) || B <- Bins]).
+    L = [string:split(X, ",", all) || X <- string:split(Bins, ";", all), X /= []],
+    [bin_render(string:split(B, ",", all)) || B <- L].
 
 bin_render([]) ->
     [];
