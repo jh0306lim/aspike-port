@@ -16,6 +16,8 @@ info_render({ok, Info}, Item) ->
                 bins_render(Tail);
             "sindex-list:" ->
                 sindexes_render(Tail);
+            "namespaces" ->
+                namespaces_render(Tail);
             % "get-config" -> config_render(Tail);
             _ ->
                 case re:run(Item, "get-config") of
@@ -71,6 +73,10 @@ config_render(Conf) ->
     X = string:split(Conf, ";", all),
     Y = [L || L <- [string:split(S, "=", leading) || S <- X], length(L) == 2],
     maps:from_list([{A, value_render(B)} || [A, B] <- Y]).
+
+namespaces_render([]) -> [];
+namespaces_render([A | Tail]) ->
+    string:split(A, ";", all) ++ namespaces_render(Tail).
 
 -spec value_render(string()) -> false | true | integer() | float() | string().
 value_render("false") ->
