@@ -698,9 +698,6 @@ static ERL_NIF_TERM node_names(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv
     rc = erl_ok;
     msg = enif_make_list_from_array(env, lst, n_nodes);
     enif_free(lst);
-    for(int i = 0; i < n_nodes; i++) {
-        delete(&node_names[i]);
-    }
 
     return enif_make_tuple2(env, rc, msg);   
 }

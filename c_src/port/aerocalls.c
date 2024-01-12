@@ -951,9 +951,6 @@ int call_node_names(const char *buf, int *index, int arity, int fd_out) {
         ei_x_encode_string(&res_buf, &node_names[i]);
     }
     ei_x_encode_empty_list(&res_buf);
-    for(int i = 0; i < n_nodes; i++) {
-        free(&node_names[i]);
-    }
 
     end:
     POST
