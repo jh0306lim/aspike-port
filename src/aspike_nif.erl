@@ -7,7 +7,12 @@
 -export([
     as_init/0,
     host_add/0,
+    host_add/1,
     host_add/2,
+    host_clear/0,
+    host_info/1,
+    host_info/3,
+    host_list/0,
     connect/0,
     connect/2,
     key_exists/0,
@@ -41,8 +46,6 @@
     node_info/2,
     help/0,
     help/1,
-    host_info/1,
-    host_info/3,
     b/0,
     % --------------------------------------
     a_key_put/0,
@@ -55,6 +58,8 @@
 -nifs([
     as_init/0,
     host_add/2,
+    host_clear/0,
+    host_list/0,
     connect/2,
     key_exists/3,
     key_inc/4,
@@ -97,8 +102,31 @@ host_add() ->
     host_add(?DEFAULT_HOST, ?DEFAULT_PORT).
 
 % @doc Adds host's address and port; they will be used to establish connection
+%
+% Note (see https://discuss.aerospike.com/t/multiple-nics-in-the-aerospike-java-client/862):
+% 
+% The Host(s) passed in the AerospikeClient constructor is only used to request the server 
+% host list and populate the cluster map. 
+% The multiple Hosts passed here are used only in case of network failure on the first one.
 -spec host_add(string(), non_neg_integer()) -> {ok, string()} | {error, string()}.
 host_add(Host, Port) when is_list(Host), is_integer(Port) ->
+    not_loaded(?LINE).
+
+% @doc Adds list of [{HostName, Port}]
+-spec host_add([{string(), non_neg_integer()}]) -> [{ok, string()} | {error, string()}].
+host_add(HLst) ->
+    [host_add(H, A) || {H, A} <- HLst].
+
+% @doc Clears host list
+-spec host_clear() -> {ok, string()}.
+host_clear() ->
+    not_loaded(?LINE).
+
+% @doc Returns list of [{Hostname, TLSname, Port}]
+% 
+% If there is no TLS then TLSname =[],, i.e. empty string.
+-spec host_list() -> {ok, [{string(), string(), non_neg_integer()}]}.
+host_list() ->
     not_loaded(?LINE).
 
 connect() ->

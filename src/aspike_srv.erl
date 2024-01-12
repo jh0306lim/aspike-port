@@ -49,7 +49,12 @@
     config_info/0,
     cluster_info/0,
     host_add/0,
+    host_add/1,
     host_add/2,
+    host_info/1,
+    host_clear/0,
+    host_info/3,
+    host_list/0,
     key_exists/0,
     key_exists/1,
     key_exists/3,
@@ -78,8 +83,6 @@
     node_names/0,
     node_get/1,
     node_info/2,
-    host_info/1,
-    host_info/3,
     port_status/0,
     port_info/0,
     help/0,
@@ -100,6 +103,7 @@
 %  API
 % -------------------------------------------------------------------------------
 
+% @doc Shortcut for testing
 -spec b() -> ok.
 b() ->
     host_add(),
@@ -134,9 +138,32 @@ host_add() ->
     host_add(?DEFAULT_HOST, ?DEFAULT_PORT).
 
 % @doc Adds host's address and port; they will be used to establish connection
+% 
+% Note (see https://discuss.aerospike.com/t/multiple-nics-in-the-aerospike-java-client/862):
+% 
+% The Host(s) passed in the AerospikeClient constructor is only used to request the server 
+% host list and populate the cluster map. 
+% The multiple Hosts passed here are used only in case of network failure on the first one.
 -spec host_add(string(), non_neg_integer()) -> {ok, string()} | {error, string()}.
 host_add(Host, Port) when is_list(Host); is_integer(Port) ->
     command({host_add, Host, Port}).
+
+% @doc Adds list of [{HostName, Port}]
+-spec host_add([{string(), non_neg_integer()}]) -> [{ok, string()} | {error, string()}].
+host_add(HLst) ->
+    [host_add(H, A) || {H, A} <- HLst].
+
+% @doc Clears host list
+-spec host_clear() -> {ok, string()}.
+host_clear() ->
+    command({host_clear}).
+
+% @doc Returns list of [{Hostname, TLSname, Port}]
+% 
+%there is no TLS then TLSname =[]
+-spec host_list() -> {ok, [{string(), string(), non_neg_integer()}]}.
+host_list() ->
+    command({host_list}).
 
 -spec connect() -> {ok, string()} | {error, string()}.
 connect() ->
@@ -368,38 +395,4 @@ call_port(Caller, Port, Msg) ->
     % docker run -d --name aerospike -p 3010-3012:3000-3002 aerospike/aerospike-server-enterprise
     % 
     % make EVENT_LIB=libev
-% -------------------------------------------------------------------------------
-% 5> aspike_srv:host_add().
-% {ok,"host and port added"}
-% 6> aspike_srv:connect().
-% {ok,"connected"}
-% 7> aspike_srv:node_random().
-% {ok,"127.0.0.1:3010"}
-% 8> aspike_srv:node_names(). 
-% {ok,["BB9020011AC4202"]}
-% 9> aspike_srv:node_get("BB9020011AC4202").
-% {ok,"127.0.0.1:3010"}
-% 4> aspike_srv:node_info("BB9020011AC4202", "namespaces").
-% {ok,{"namespaces",[?DEFAULT_NAMESPACE]}}
-% 
-% 8> aspike_srv:help("namespaces").
-% {ok,{"namespaces",[?DEFAULT_NAMESPACE]}}
-% 9> aspike_srv:help("nodes").     
-% {error,"no data"}
-% 10> aspike_srv:help("node"). 
-% {ok,"node\tBB9020011AC4202\n"}
-% 13> aspike_srv:help("bins").
-% 2> aspike_srv:help("sindex-list:").
-% {ok,{"sindex-list:",
-% [#{"bin" => "binint","context" => null,
-%    "indexname" => "page-index","indextype" => "default",
-%    "ns" => ?DEFAULT_NAMESPACE,"set" => "queryresume","state" => "RW",
-%    "type" => "numeric"}]}}
-% 
-% 12> tsl:tst(aspike_srv, key_put, 0, 10000).
-% aspike_srv:key_put, N=0, R=10000, Time=628.3231
-% ok
-% 13> tsl:tst(aspike_srv, key_get, 0, 10000).
-% aspike_srv:key_get, N=0, R=10000, Time=635.6161
-% ok
 % -------------------------------------------------------------------------------

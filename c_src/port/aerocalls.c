@@ -116,7 +116,11 @@ int call_config_info(const char *buf, int *index, int arity, int fd_out);
 int call_connect(const char *buf, int *index, int arity, int fd_out);
 
 int call_aerospike_init(const char *buf, int *index, int arity, int fd_out);
+
 int call_config_add_hosts(const char *buf, int *index, int arity, int fd_out);
+int call_config_clear_hosts(const char *buf, int *index, int arity, int fd_out);
+int call_config_list_hosts(const char *buf, int *index, int arity, int fd_out);
+
 int call_port_status(const char *buf, int *index, int arity, int fd_out);
 
 int call_key_exists(const char *buf, int *index, int arity, int fd_out);
@@ -199,6 +203,12 @@ int function_call(const char *buf, int *index, int arity, int fd_out) {
     }
     if (check_name(fname, "host_add", arity, 3)) {
         return call_config_add_hosts(buf, index, arity, fd_out);
+    }
+    if (check_name(fname, "host_clear", arity, 1)) {
+        return call_config_clear_hosts(buf, index, arity, fd_out);
+    }
+    if (check_name(fname, "host_list", arity, 1)) {
+        return call_config_list_hosts(buf, index, arity, fd_out);
     }
     if (check_name(fname, "connect", arity, 3)) {
         return call_connect(buf, index, arity, fd_out);
@@ -421,6 +431,43 @@ int call_config_add_hosts(const char *buf, int *index, int arity, int fd_out) {
     end:
     POST
 }
+
+int call_config_clear_hosts(const char *buf, int *index, int arity, int fd_out) {
+    PRE
+    CHECK_INIT
+
+    as_config_clear_hosts(&as.config);
+
+    OK("hosts list was cleared")
+
+    end:
+    POST
+}
+
+int call_config_list_hosts(const char *buf, int *index, int arity, int fd_out) {
+    PRE
+    CHECK_INIT
+
+    as_config  *config = &as.config;   
+    as_vector  *hosts = config->hosts;
+
+    OK0
+    ei_x_encode_list_header(&res_buf, hosts->size);
+    for (uint32_t i = 0; i < hosts->size; i++) {
+        as_host* host = as_vector_get(hosts, i);
+        if (host->name) {
+            ei_x_encode_tuple_header(&res_buf, 3);
+            ei_x_encode_string(&res_buf, host->name);
+            ei_x_encode_string(&res_buf, host->tls_name == NULL ? "" : host->tls_name);
+            ei_x_encode_ulong(&res_buf, host->port);
+        }
+    }
+    ei_x_encode_empty_list(&res_buf);
+
+    end:
+    POST
+}
+
 
 int call_connect(const char *buf, int *index, int arity, int fd_out) {
     PRE

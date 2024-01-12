@@ -102,6 +102,38 @@ static ERL_NIF_TERM host_add(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[]
     return enif_make_tuple2(env, rc, msg);
 }
 
+static ERL_NIF_TERM host_clear(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[])
+{
+    CHECK_INIT
+    as_config_clear_hosts(&as.config);
+    ERL_NIF_TERM rc = erl_error;
+    ERL_NIF_TERM msg = enif_make_string(env, "hosts list was cleared", ERL_NIF_UTF8);
+    return enif_make_tuple2(env, rc, msg);
+}
+
+static ERL_NIF_TERM host_list(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[])
+{
+    CHECK_INIT
+    as_config  *config = &as.config;   
+    as_vector  *hosts = config->hosts;
+    ERL_NIF_TERM *lst = (ERL_NIF_TERM *)enif_alloc(sizeof(ERL_NIF_TERM)* hosts->size);
+
+    int32_t n = 0; 
+    for (uint32_t i = 0; i < hosts->size; i++) {
+        as_host* host = (as_host*)as_vector_get(hosts, i);
+		lst[n++] = enif_make_tuple3(env,
+            enif_make_string(env, host->name, ERL_NIF_UTF8),
+            enif_make_string(env,  host->tls_name == NULL ? "" : host->tls_name, ERL_NIF_UTF8),
+            enif_make_uint(env, host->port)
+            );
+	}
+
+    ERL_NIF_TERM msg = enif_make_list_from_array(env, lst, n);
+    enif_free(lst);
+
+    return enif_make_tuple2(env, erl_ok, msg);
+}
+
 static ERL_NIF_TERM connect(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[])
 {
     char user[AS_USER_SIZE];
@@ -852,11 +884,12 @@ static ERL_NIF_TERM bar_nif(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[])
     return enif_make_int(env, ret);
 }
 
-
 static ErlNifFunc nif_funcs[] = {
     {"as_init", 0, as_init},
-    NIF_FUN("host_add", 2, host_add),
     NIF_FUN("connect", 2, connect),
+    NIF_FUN("host_add", 2, host_add),
+    NIF_FUN("host_clear", 0, host_clear),
+    NIF_FUN("host_list", 0, host_list),
     NIF_FUN("key_exists", 3, key_exists),
     NIF_FUN("key_inc", 4, key_inc),
     NIF_FUN("key_get", 3, key_get),
