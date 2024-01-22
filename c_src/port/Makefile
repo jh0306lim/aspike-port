@@ -38,9 +38,9 @@ endif
 CFLAGS += -fPIC -I $(ERTS_INCLUDE_DIR) -I $(ERL_INTERFACE_INCLUDE_DIR) -I$(AERO_BASE)/include/aerospike
 CXXFLAGS += -fPIC -I $(ERTS_INCLUDE_DIR) -I $(ERL_INTERFACE_INCLUDE_DIR)
 
-LDLIBS += -L $(ERL_INTERFACE_LIB_DIR) -lei 
-LDLIBS += -L/usr/local/lib -lev -lssl -lcrypto  -lpthread -lm -lz  -lm -lz -ldl
 LDLIBS += $(AERO_BASE)/lib/libaerospike.a
+LDLIBS += -L$(ERL_INTERFACE_LIB_DIR) -lei 
+LDLIBS += -L/usr/local/lib -lev -lssl -lcrypto  -lpthread -lm -lz  -lm -lz -ldl
 
 # Verbosity.
 
