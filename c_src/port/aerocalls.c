@@ -23,6 +23,7 @@
 #define MAX_SET_SIZE 64			// based on current server limit
 #define AS_BIN_NAME_MAX_SIZE 16
 #define MAX_BINS_NUMBER 1024
+#define MAX_NODES_NUMBER 1024
 
 const char DEFAULT_HOST[] = "127.0.0.1";
 // const int DEFAULT_PORT = 3000;
@@ -942,7 +943,7 @@ int call_node_names(const char *buf, int *index, int arity, int fd_out) {
     PRE
     CHECK_ALL
     int n_nodes = 0;
-    char* node_names[1024];
+    char** node_names = (char**)malloc(MAX_NODES_NUMBER * sizeof(char *));
     as_cluster_get_node_names(as.cluster, &n_nodes, node_names);
 
     OK0
@@ -955,7 +956,7 @@ int call_node_names(const char *buf, int *index, int arity, int fd_out) {
         free(node_names[i]);
     }
     ei_x_encode_empty_list(&res_buf);
-
+    free(node_names);
     end:
     POST
 }

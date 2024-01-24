@@ -23,6 +23,7 @@
 #define MAX_SET_SIZE 64			// based on current server limit
 #define AS_BIN_NAME_MAX_SIZE 16
 #define MAX_BINS_NUMBER 1024
+#define MAX_NODES_NUMBER 1024
 
 #define USE_DIRTY 1
 #ifdef USE_DIRTY
@@ -687,19 +688,18 @@ static ERL_NIF_TERM node_names(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv
     CHECK_ALL
     ERL_NIF_TERM rc, msg;
     int n_nodes = 0;
-    char* node_names[1024];
-    as_cluster_get_node_names(as.cluster, &n_nodes, node_names);
+    char* node_names = new char[MAX_NODES_NUMBER];
+    as_cluster_get_node_names(as.cluster, &n_nodes, &node_names);
 
     ERL_NIF_TERM *lst = (ERL_NIF_TERM *)enif_alloc(sizeof(ERL_NIF_TERM)* n_nodes);
-    
     for(int i = 0; i < n_nodes; i++){
-        as_node* node = as_node_get_by_name(as.cluster, node_names[i]);
+        as_node* node = as_node_get_by_name(as.cluster, &node_names[i]);
         lst[i] = enif_make_tuple2(
             env,
-            enif_make_string(env, node_names[i], ERL_NIF_UTF8),
+            enif_make_string(env, &node_names[i], ERL_NIF_UTF8),
             enif_make_string(env, as_node_get_address_string(node), ERL_NIF_UTF8)
             );
-        delete(node_names[i]);
+        delete[] &node_names[i];
     }
     rc = erl_ok;
     msg = enif_make_list_from_array(env, lst, n_nodes);
