@@ -74,8 +74,7 @@ config_render(Conf) ->
     maps:from_list([{A, value_render(B)} || [A, B] <- Y]).
 
 namespaces_render([]) -> [];
-namespaces_render([A | Tail]) ->
-    string:split(A, ";", all) ++ namespaces_render(Tail).
+namespaces_render([A | Tail]) -> string:split(A, ";", all) ++ namespaces_render(Tail).
 
 -spec value_render(string()) -> false | true | integer() | float() | string().
 value_render("false") ->
