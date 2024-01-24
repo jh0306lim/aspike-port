@@ -238,8 +238,8 @@ key_generation(Namespace, Set, Key) when is_list(Namespace), is_list(Set), is_li
 node_random() ->
     not_loaded(?LINE).
 
-% @doc Returns list of node names.
--spec node_names() -> {ok, [string()]} | {error, term()}.
+% @doc Returns list of node names and addresses.
+-spec node_names() -> {ok, [{string(), string()}]} | {error, term()}.
 node_names() ->
     not_loaded(?LINE).
 

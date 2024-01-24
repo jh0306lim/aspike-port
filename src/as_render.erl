@@ -18,7 +18,6 @@ info_render({ok, Info}, Item) ->
                 sindexes_render(Tail);
             "namespaces" ->
                 namespaces_render(Tail);
-            % "get-config" -> config_render(Tail);
             _ ->
                 case re:run(Item, "get-config") of
                     {match, _} -> config_render(Tail);

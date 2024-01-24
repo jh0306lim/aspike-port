@@ -687,23 +687,22 @@ static ERL_NIF_TERM node_names(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv
 {
     CHECK_ALL
     ERL_NIF_TERM rc, msg;
-    int n_nodes = 0;
-    char* node_names = new char[MAX_NODES_NUMBER];
-    as_cluster_get_node_names(as.cluster, &n_nodes, &node_names);
+	as_nodes* nodes = as_nodes_reserve(as.cluster);
+    uint32_t n_nodes = nodes->size;
 
     ERL_NIF_TERM *lst = (ERL_NIF_TERM *)enif_alloc(sizeof(ERL_NIF_TERM)* n_nodes);
     for(int i = 0; i < n_nodes; i++){
-        as_node* node = as_node_get_by_name(as.cluster, &node_names[i]);
+        as_node* node = nodes->array[i];
         lst[i] = enif_make_tuple2(
             env,
-            enif_make_string(env, &node_names[i], ERL_NIF_UTF8),
+            enif_make_string(env, node->name, ERL_NIF_UTF8),
             enif_make_string(env, as_node_get_address_string(node), ERL_NIF_UTF8)
             );
-        delete[] &node_names[i];
     }
     rc = erl_ok;
     msg = enif_make_list_from_array(env, lst, n_nodes);
     enif_free(lst);
+    as_nodes_release(nodes);
 
     return enif_make_tuple2(env, rc, msg);   
 }

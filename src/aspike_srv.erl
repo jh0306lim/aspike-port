@@ -284,8 +284,8 @@ cluster_info() ->
 node_random() ->
     command({node_random}).
 
-% @doc Returns list of node names.
--spec node_names() -> {ok, [string()]} | {error, term()}.
+% @doc Returns list of node names and addresses.
+-spec node_names() -> {ok, [{string(), string()}]} | {error, term()}.
 node_names() ->
     command({node_names}).
 
