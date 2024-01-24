@@ -942,13 +942,17 @@ int call_node_names(const char *buf, int *index, int arity, int fd_out) {
     PRE
     CHECK_ALL
     int n_nodes = 0;
-    char* node_names = 0;
-    as_cluster_get_node_names(as.cluster, &n_nodes, &node_names);
+    char* node_names[1024];
+    as_cluster_get_node_names(as.cluster, &n_nodes, node_names);
 
     OK0
     ei_x_encode_list_header(&res_buf, n_nodes);
     for(int i = 0; i < n_nodes; i++){
-        ei_x_encode_string(&res_buf, &node_names[i]);
+        ei_x_encode_tuple_header(&res_buf, 2);
+        as_node* node = as_node_get_by_name(as.cluster, node_names[i]);
+        ei_x_encode_string(&res_buf, node_names[i]);
+        ei_x_encode_string(&res_buf, as_node_get_address_string(node));
+        free(node_names[i]);
     }
     ei_x_encode_empty_list(&res_buf);
 

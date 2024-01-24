@@ -391,7 +391,7 @@ call_port(Caller, Port, Msg) ->
 % -------------------------------------------------------------------------------
     % aql -h 127.0.0.1:3010
     % asadm -e info
-    % docker run -d --name aerospike -p 3010-3012:3011-3002 aerospike:ee-7.0.0.3 
+    % 
     % docker run -d --name aerospike -p 3010-3012:3000-3002 aerospike/aerospike-server-enterprise
     % 
     % make EVENT_LIB=libev
