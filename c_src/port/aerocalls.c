@@ -451,9 +451,11 @@ int call_config_list_hosts(const char *buf, int *index, int arity, int fd_out) {
     as_config  *config = &as.config;   
     as_vector  *hosts = config->hosts;
 
+    uint32_t size = (hosts == NULL) ? 0 : hosts->size;
+
     OK0
-    ei_x_encode_list_header(&res_buf, hosts->size);
-    for (uint32_t i = 0; i < hosts->size; i++) {
+    ei_x_encode_list_header(&res_buf, size);
+    for (uint32_t i = 0; i < size; i++) {
         as_host* host = as_vector_get(hosts, i);
         if (host->name) {
             ei_x_encode_tuple_header(&res_buf, 3);

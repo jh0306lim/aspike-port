@@ -144,9 +144,14 @@ host_add() ->
 % The Host(s) passed in the AerospikeClient constructor is only used to request the server
 % host list and populate the cluster map.
 % The multiple Hosts passed here are used only in case of network failure on the first one.
--spec host_add(string(), non_neg_integer()) -> {ok, string()} | {error, string()}.
-host_add(Host, Port) when is_list(Host); is_integer(Port) ->
-    command({host_add, Host, Port}).
+-spec host_add(string() | inet:ip_address(), non_neg_integer()) -> {ok, string()} | {error, string()}.
+host_add(Host, Port) when is_list(Host), is_integer(Port) ->
+    command({host_add, Host, Port});
+host_add(Host, Port) ->
+    case inet:is_ip_address(Host) of 
+        true -> host_add(inet:ntoa(Host), Port);
+        false -> {error, "wrong address"}
+        end.
 
 % @doc Adds list of [{HostName, Port}]
 -spec host_add([{string(), non_neg_integer()}]) -> [{ok, string()} | {error, string()}].
@@ -161,9 +166,9 @@ host_clear() ->
 % @doc Returns list of [{Hostname, TLSname, Port}]
 %
 %there is no TLS then TLSname =[]
--spec host_list() -> {ok, [{string(), string(), non_neg_integer()}]}.
+-spec host_list() -> {ok, [{inet:ip_address(), string(), non_neg_integer()}]} | {error, term}.
 host_list() ->
-    command({host_list}).
+    as_render:hosts_render(command({host_list})).
 
 -spec connect() -> {ok, string()} | {error, string()}.
 connect() ->
@@ -171,7 +176,7 @@ connect() ->
 
 % @doc Create connection using User and PWd credential
 -spec connect(string(), string()) -> {ok, string()} | {error, string()}.
-connect(User, Pwd) when is_list(User); is_list(Pwd) ->
+connect(User, Pwd) when is_list(User), is_list(Pwd) ->
     command({connect, User, Pwd}).
 
 key_exists() ->

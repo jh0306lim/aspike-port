@@ -1,10 +1,25 @@
 -module(as_render).
 
 -export([
+    hosts_render/1,
     info_render/2,
     node_render/1,
     advice/1
 ]).
+
+-spec hosts_render({ok, [{string(), string(), non_neg_integer()}]} | {error, string()}) -> 
+    {ok, [{inet:ip_address() | string(), string(), non_neg_integer()}]} | {error, string()}.
+hosts_render({ok, Lst}) ->
+    {ok, [{get_address(A), T, P} || {A, T, P} <- Lst]};
+hosts_render(X) ->
+    X.
+
+-spec get_address(string()) -> string() | inet:ip_address().
+get_address(A) ->
+    case inet:parse_address(A) of
+        {ok, R} -> R;
+        _ -> A
+    end.
 
 -spec node_render({term(), string()}) ->
     {term(), string()} | {ok, {inet:ip_address(), non_neg_integer()}}.

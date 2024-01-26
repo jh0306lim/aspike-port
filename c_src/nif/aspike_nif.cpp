@@ -116,20 +116,19 @@ static ERL_NIF_TERM host_list(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[
     CHECK_INIT
     as_config  *config = &as.config;   
     as_vector  *hosts = config->hosts;
-    ERL_NIF_TERM *lst = (ERL_NIF_TERM *)enif_alloc(sizeof(ERL_NIF_TERM)* hosts->size);
+    uint32_t size = (hosts == NULL) ? 0 : hosts->size;
 
-    int32_t n = 0; 
-    for (uint32_t i = 0; i < hosts->size; i++) {
+    ERL_NIF_TERM msg = enif_make_list(env, 0);
+    
+    for (uint32_t i = 0; i < size; i++) {
         as_host* host = (as_host*)as_vector_get(hosts, i);
-		lst[n++] = enif_make_tuple3(env,
+		ERL_NIF_TERM cell = enif_make_tuple3(env,
             enif_make_string(env, host->name, ERL_NIF_UTF8),
             enif_make_string(env,  host->tls_name == NULL ? "" : host->tls_name, ERL_NIF_UTF8),
             enif_make_uint(env, host->port)
             );
+        msg = enif_make_list_cell(env, cell, msg);
 	}
-
-    ERL_NIF_TERM msg = enif_make_list_from_array(env, lst, n);
-    enif_free(lst);
 
     return enif_make_tuple2(env, erl_ok, msg);
 }
@@ -444,22 +443,19 @@ static ERL_NIF_TERM dump_records(ErlNifEnv* env, const as_record *p_rec) {
 	as_record_iterator it;
 	as_record_iterator_init(&it, p_rec);
     
-	uint16_t num_bins = as_record_numbins(p_rec);
+    res = enif_make_list(env, 0);
 
-    ERL_NIF_TERM *lst = (ERL_NIF_TERM *)enif_alloc(sizeof(ERL_NIF_TERM)* num_bins);
-    int n = 0;
     while (as_record_iterator_has_next(&it)) {
         const as_bin* p_bin = as_record_iterator_next(&it);
         char* name = as_bin_get_name(p_bin);
         uint type = as_bin_get_type(p_bin);
-		lst[n++] = enif_make_tuple2(env,
+		ERL_NIF_TERM cell = enif_make_tuple2(env,
             enif_make_string(env, name, ERL_NIF_UTF8),
             format_value_out(env, type, as_bin_get_value(p_bin))
             );
+        res = enif_make_list_cell(env, cell, res);
 	}
 
-    res = enif_make_list_from_array(env, lst, num_bins);
-    enif_free(lst);
 	as_record_iterator_destroy(&it);
 
     return res;
@@ -685,25 +681,26 @@ static ERL_NIF_TERM node_random(ErlNifEnv* env, int argc, const ERL_NIF_TERM arg
 static ERL_NIF_TERM node_names(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[])
 {
     CHECK_ALL
-    ERL_NIF_TERM rc, msg;
+    ERL_NIF_TERM rc;
 	as_nodes* nodes = as_nodes_reserve(as.cluster);
-    uint32_t n_nodes = nodes->size;
+    uint32_t n_nodes = (nodes == NULL) ? 0 : nodes->size;
 
-    ERL_NIF_TERM *lst = (ERL_NIF_TERM *)enif_alloc(sizeof(ERL_NIF_TERM)* n_nodes);
+    ERL_NIF_TERM lst = enif_make_list(env, 0);
+
     for(uint32_t i = 0; i < n_nodes; i++){
         as_node* node = nodes->array[i];
-        lst[i] = enif_make_tuple2(
+        ERL_NIF_TERM cell = enif_make_tuple2(
             env,
             enif_make_string(env, node->name, ERL_NIF_UTF8),
             enif_make_string(env, as_node_get_address_string(node), ERL_NIF_UTF8)
             );
+        lst = enif_make_list_cell(env, cell, lst);    
     }
+
     rc = erl_ok;
-    msg = enif_make_list_from_array(env, lst, n_nodes);
-    enif_free(lst);
     as_nodes_release(nodes);
 
-    return enif_make_tuple2(env, rc, msg);   
+    return enif_make_tuple2(env, rc, lst);   
 }
 
 static ERL_NIF_TERM node_get(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[])
@@ -888,9 +885,9 @@ static ERL_NIF_TERM bar_nif(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[])
 static ErlNifFunc nif_funcs[] = {
     {"as_init", 0, as_init},
     NIF_FUN("connect", 2, connect),
-    NIF_FUN("host_add", 2, host_add),
+    NIF_FUN("nif_host_add", 2, host_add),
     NIF_FUN("host_clear", 0, host_clear),
-    NIF_FUN("host_list", 0, host_list),
+    NIF_FUN("nif_host_list", 0, host_list),
     NIF_FUN("key_exists", 3, key_exists),
     NIF_FUN("key_inc", 4, key_inc),
     NIF_FUN("key_get", 3, key_get),

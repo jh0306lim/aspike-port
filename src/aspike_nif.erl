@@ -58,9 +58,9 @@
 
 -nifs([
     as_init/0,
-    host_add/2,
+    nif_host_add/2,
     host_clear/0,
-    host_list/0,
+    nif_host_list/0,
     connect/2,
     key_exists/3,
     key_inc/4,
@@ -109,8 +109,16 @@ host_add() ->
 % The Host(s) passed in the AerospikeClient constructor is only used to request the server
 % host list and populate the cluster map.
 % The multiple Hosts passed here are used only in case of network failure on the first one.
--spec host_add(string(), non_neg_integer()) -> {ok, string()} | {error, string()}.
+-spec host_add(string() | inet:ip_address(), non_neg_integer()) -> {ok, string()} | {error, string()}.
 host_add(Host, Port) when is_list(Host), is_integer(Port) ->
+    nif_host_add(Host, Port);
+host_add(Host, Port) ->
+    case inet:is_ip_address(Host) of 
+        true -> host_add(inet:ntoa(Host), Port);
+        false -> {error, "wrong address"}
+        end.
+
+nif_host_add(_, _) ->
     not_loaded(?LINE).
 
 % @doc Adds list of [{HostName, Port}]
@@ -126,8 +134,11 @@ host_clear() ->
 % @doc Returns list of [{Hostname, TLSname, Port}]
 %
 % If there is no TLS then TLSname =[],, i.e. empty string.
--spec host_list() -> {ok, [{string(), string(), non_neg_integer()}]}.
+-spec host_list() -> {ok, [{inet:ip_address(), string(), non_neg_integer()}]} | {error, term}.
 host_list() ->
+    as_render:hosts_render(nif_host_list()).
+
+nif_host_list() ->
     not_loaded(?LINE).
 
 connect() ->
@@ -191,7 +202,7 @@ key_remove(Key) ->
 
 % @doc Removes Key from  Namesplace Set
 -spec key_remove(string(), string(), string()) -> {ok, string()} | {error, string()}.
-key_remove(Namespace, Set, Key) when is_list(Namespace); is_list(Set); is_list(Key) ->
+key_remove(Namespace, Set, Key) when is_list(Namespace), is_list(Set), is_list(Key) ->
     not_loaded(?LINE).
 
 key_select() ->
