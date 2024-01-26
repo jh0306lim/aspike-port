@@ -279,20 +279,26 @@ config_info() ->
 cluster_info() ->
     command({cluster_info}).
 
-% @doc Returns random node in form "Address:Port", for example: "127.0.0.1:3010"
--spec node_random() -> {ok, string()} | {error, term()}.
+% @doc Returns random node in form {Address:Port}, for example: {{127,0,0,1},3010}
+-spec node_random() -> {ok, {inet:ip_address(), non_neg_integer()}} | {error, term()}.
 node_random() ->
-    command({node_random}).
+    as_render:node_render(command({node_random})).
 
 % @doc Returns list of node names and addresses.
--spec node_names() -> {ok, [{string(), string()}]} | {error, term()}.
+-spec node_names() -> {ok, [{string(), {inet:ip_address(), non_neg_integer()}}]} | {error, term()}.
 node_names() ->
-    command({node_names}).
+    case command({node_names}) of
+        {ok, L} ->
+            T = [{N, as_render:node_render({ok, A})} || {N, A} <- L],
+            {ok, [{N, Y} || {N, {X, Y}} <- T, X == ok]};
+        Any ->
+            Any
+    end.
 
-% @doc Returns node in form "Address:Port", for example: "127.0.0.1:3010"
--spec node_get(string()) -> {ok, string()} | {error, term()}.
+% @doc Returns node in form {Address:Port}, for example: {{127,0,0,1},3010}
+-spec node_get(string()) -> {ok, {inet:ip_address(), non_neg_integer()}} | {error, term()}.
 node_get(NodeName) when is_list(NodeName) ->
-    command({node_get, NodeName}).
+    as_render:node_render(command({node_get, NodeName})).
 
 % @doc Returns information about Item for NodeName
 % Useful Items:

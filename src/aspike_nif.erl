@@ -69,9 +69,9 @@
     key_put/4,
     key_remove/3,
     key_select/4,
-    node_random/0,
-    node_names/0,
-    node_get/1,
+    nif_node_random/0,
+    nif_node_names/0,
+    nif_node_get/1,
     nif_node_info/2,
     nif_help/1,
     nif_host_info/3,
@@ -233,19 +233,34 @@ key_generation(Key) ->
 key_generation(Namespace, Set, Key) when is_list(Namespace), is_list(Set), is_list(Key) ->
     not_loaded(?LINE).
 
-% @doc Returns random node in form "Address:Port", for example: "127.0.0.1:3010"
--spec node_random() -> {ok, string()} | {error, term()}.
+% @doc Returns random node in form {Address:Port}, for example: {{127,0,0,1},3010}
+-spec node_random() -> {ok, {inet:ip_address(), non_neg_integer()}} | {error, term()}.
 node_random() ->
+    as_render:node_render(nif_node_random()).
+
+nif_node_random() ->
     not_loaded(?LINE).
 
 % @doc Returns list of node names and addresses.
--spec node_names() -> {ok, [{string(), string()}]} | {error, term()}.
+-spec node_names() -> {ok, [{string(), {inet:ip_address(), non_neg_integer()}}]} | {error, term()}.
 node_names() ->
+    case nif_node_names() of
+        {ok, L} ->
+            T = [{N, as_render:node_render({ok, A})} || {N, A} <- L],
+            {ok, [{N, Y} || {N, {X, Y}} <- T, X == ok]};
+        Any ->
+            Any
+    end.
+
+nif_node_names() ->
     not_loaded(?LINE).
 
-% @doc Returns node in form "Address:Port", for example: "127.0.0.1:3010"
--spec node_get(string()) -> {ok, string()} | {error, term()}.
+% @doc Returns node in form {Address:Port}, for example: {{127,0,0,1},3010}
+-spec node_get(string()) -> {ok, {inet:ip_address(), non_neg_integer()}} | {error, term()}.
 node_get(NodeName) when is_list(NodeName) ->
+    as_render:node_render(nif_node_get(NodeName)).
+
+nif_node_get(NodeName) when is_list(NodeName) ->
     not_loaded(?LINE).
 
 % @doc Returns information about Item for NodeName

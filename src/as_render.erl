@@ -1,11 +1,39 @@
 -module(as_render).
 
--export([info_render/2]).
+-export([
+    info_render/2,
+    node_render/1,
+    advice/1
+]).
+
+-spec node_render({term(), string()}) ->
+    {term(), string()} | {ok, {inet:ip_address(), non_neg_integer()}}.
+node_render({ok, S}) ->
+    [A, P] = string:split(S, ":"),
+    case inet:parse_address(A) of
+        {ok, R} -> {ok, {R, list_to_integer(P)}};
+        E -> {error, {E, S}}
+    end;
+node_render(Arg) ->
+    Arg.
+
+-spec advice(string()) -> {use, [string()]}.
+advice(_) ->
+    {use, [
+        "bins",
+        "sets",
+        "node",
+        "namespaces",
+        "udf-list",
+        "sindex-list:",
+        "edition",
+        "get-config"
+    ]}.
 
 % @doc Butifies different help function results
 -spec info_render({error | ok, string()}, string()) -> {error, string()} | {ok, map()}.
-info_render(Res = {error, _}, _) ->
-    Res;
+info_render({error, Reason}, Item) ->
+    {error, {Reason, advice(Item)}};
 info_render({ok, Info}, Item) ->
     [F | Tail] = string:split(string:chomp(Info), "\t", all),
     Res =
