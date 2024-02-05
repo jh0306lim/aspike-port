@@ -2,6 +2,7 @@
 
 #include <time.h>
 #include <string>
+#include <utility>
 
 #include <aerospike/aerospike.h>
 #include <aerospike/aerospike_info.h>
@@ -169,6 +170,7 @@ static ERL_NIF_TERM binary_put(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv
     ErlNifBinary bin_ns, bin_set, bin_key;
     unsigned int length;
     std::string name_space, aspk_set, aspk_key;
+    long ttl;
 
     if (!enif_inspect_binary(env, argv[0], &bin_ns)) {
 	    return enif_make_badarg(env);
@@ -190,6 +192,10 @@ static ERL_NIF_TERM binary_put(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv
 	    return enif_make_badarg(env);
     }
 
+    if (!enif_get_long(env, argv[4], &ttl)) {
+        return enif_make_badarg(env);
+    }
+
     ERL_NIF_TERM rc, msg;
     if (length == 0) {
         rc = erl_ok;
@@ -203,6 +209,7 @@ static ERL_NIF_TERM binary_put(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv
 
 	as_key_init_str(&key, name_space.c_str(), aspk_set.c_str(), aspk_key.c_str());
 	as_record_inita(&rec, length);
+    rec.ttl = ttl;
     
     for (uint i = 0; i < length; i++) {
         ERL_NIF_TERM head;
@@ -235,7 +242,7 @@ static ERL_NIF_TERM binary_put(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv
         as_record_set_bytes(&rec, bin_str.c_str(), &as_bytes_val);
         list = tail;
     }
-    
+
     if (aerospike_key_put(&as, &err, NULL, &key, &rec)  != AEROSPIKE_OK) {
         rc = erl_error;;
         msg = enif_make_string(env, err.message, ERL_NIF_UTF8);

@@ -34,7 +34,7 @@ else ifeq ($(UNAME_SYS), Linux)
 	CXXFLAGS ?= -O3 -finline-functions -Wall
 	AERO_BASE ?= /usr
 endif
-#CXXFLAGS += -std=c++17
+CXXFLAGS += -std=c++17
 
 CFLAGS += -fPIC -I $(ERTS_INCLUDE_DIR) -I $(ERL_INTERFACE_INCLUDE_DIR) -I$(AERO_BASE)/include/aerospike
 CXXFLAGS += -fPIC -I $(ERTS_INCLUDE_DIR) -I $(ERL_INTERFACE_INCLUDE_DIR)
