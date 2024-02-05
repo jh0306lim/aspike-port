@@ -53,7 +53,8 @@
     a_key_put/1,
     a_key_put/6,
     foo/1,
-    bar/1
+    bar/1,
+    binary_put/5
 ]).
 
 -nifs([
@@ -78,7 +79,8 @@
     % --------------------------------------
     a_key_put/6,
     foo/1,
-    bar/1
+    bar/1,
+    binary_put/5
 ]).
 
 % -------------------------------------------------------------------------------
@@ -192,6 +194,11 @@ key_put(Key, Lst) ->
 key_put(Namespace, Set, Key, Lst) when
     is_list(Namespace), is_list(Set), is_list(Key), is_list(Lst)
 ->
+    not_loaded(?LINE).
+
+-spec binary_put(binary(), binary(), binary(), [{binary(), binary()}], integer()) -> 
+    {ok, string()} | {error, string()}.
+binary_put(_Namespace, _Set, _Key, _BinList, _TTL) ->
     not_loaded(?LINE).
 
 key_remove() ->
@@ -346,3 +353,5 @@ bar(_Y) ->
 % 3> tsl:tst(aspike_nif, key_put, 0, 100000).
 % aspike_nif:key_put, N=0, R=100000, Time=588.68821
 % -----------------------------------------------------------------
+
+
