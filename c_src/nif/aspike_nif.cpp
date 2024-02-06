@@ -204,6 +204,8 @@ static ERL_NIF_TERM binary_put(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv
         return enif_make_tuple2(env, rc, msg);
     }
 
+    CHECK_ALL
+
 	as_error err;
     as_key key;
 	as_record rec;
@@ -514,7 +516,8 @@ static ERL_NIF_TERM format_value_out(ErlNifEnv* env, as_val_t type, as_bin_value
     switch(type) {
         case AS_INTEGER:
             return enif_make_int64(env, val->integer.value);
-        case AS_BYTES_BLOB: {
+        case AS_STRING:
+        case AS_BYTES: {
             char * bin_as_str = as_val_tostring(val);
             auto len = strlen(bin_as_str);
             unsigned char * val_data;
@@ -624,7 +627,6 @@ static ERL_NIF_TERM dump_binary_records(ErlNifEnv* env, const as_record *p_rec) 
 		free(key_val_as_str);
         return res;
 	}
-    //
 
 	as_record_iterator it;
 	as_record_iterator_init(&it, p_rec);
@@ -675,7 +677,7 @@ static ERL_NIF_TERM binary_get(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv
     }
     aspk_key.assign((const char*) bin_key.data, bin_key.size);
 
-//
+    CHECK_ALL
 
     ERL_NIF_TERM rc, msg;
 	as_error err;
