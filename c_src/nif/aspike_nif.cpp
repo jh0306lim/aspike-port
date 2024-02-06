@@ -165,6 +165,7 @@ static ERL_NIF_TERM connect(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[])
     return enif_make_tuple2(env, rc, msg);
 }
 
+
 static ERL_NIF_TERM binary_put(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[])
 {
     ErlNifBinary bin_ns, bin_set, bin_key;
@@ -513,6 +514,16 @@ static ERL_NIF_TERM format_value_out(ErlNifEnv* env, as_val_t type, as_bin_value
     switch(type) {
         case AS_INTEGER:
             return enif_make_int64(env, val->integer.value);
+        case AS_BYTES_BLOB: {
+            char * bin_as_str = as_val_tostring(val);
+            auto len = strlen(bin_as_str);
+            unsigned char * val_data;
+            ERL_NIF_TERM res;
+            val_data = enif_make_new_binary(env, len, &res);
+            memcpy(val_data, bin_as_str, len);
+            free(bin_as_str);
+            return res;
+        }break;
         default:
             char * val_as_str = as_val_tostring(val);
             ERL_NIF_TERM res =  enif_make_string(env, as_val_tostring(val), ERL_NIF_UTF8);
@@ -596,6 +607,105 @@ static ERL_NIF_TERM key_get(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[])
         as_record_destroy(p_rec);
     }
     return enif_make_tuple2(env, rc, msg);
+}
+
+
+static ERL_NIF_TERM dump_binary_records(ErlNifEnv* env, const as_record *p_rec) {
+    ERL_NIF_TERM res;
+	
+    if (p_rec->key.valuep) {
+        unsigned char* key_data;
+		char* key_val_as_str = as_val_tostring(p_rec->key.valuep);
+        auto len = strlen(key_val_as_str);
+
+        key_data = enif_make_new_binary(env, len, &res);
+        memcpy(key_data, key_val_as_str, len);
+        //res = enif_make_string(env, key_val_as_str, ERL_NIF_UTF8);
+		free(key_val_as_str);
+        return res;
+	}
+    //
+
+	as_record_iterator it;
+	as_record_iterator_init(&it, p_rec);
+    
+    res = enif_make_list(env, 0);
+
+    while (as_record_iterator_has_next(&it)) {
+        const as_bin* p_bin = as_record_iterator_next(&it);
+        char* name = as_bin_get_name(p_bin);
+        auto namelen = strlen(name);
+        uint type = as_bin_get_type(p_bin);
+
+        unsigned char* name_data;
+        ERL_NIF_TERM name_term;
+        name_data = enif_make_new_binary(env, namelen, &name_term);
+        memcpy(name_data, name, namelen);
+
+		ERL_NIF_TERM cell = enif_make_tuple2(env,
+            name_term,
+            format_value_out(env, type, as_bin_get_value(p_bin))
+            );
+        res = enif_make_list_cell(env, cell, res);
+	}
+
+	as_record_iterator_destroy(&it);
+
+    return res;
+
+}
+
+static ERL_NIF_TERM binary_get(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[])
+{
+    ErlNifBinary bin_ns, bin_set, bin_key;
+    std::string name_space, aspk_set, aspk_key;
+    
+    if (!enif_inspect_binary(env, argv[0], &bin_ns)) {
+	    return enif_make_badarg(env);
+    }
+    name_space.assign((const char*) bin_ns.data, bin_ns.size);
+
+    if (!enif_inspect_binary(env, argv[1], &bin_set)) {
+	    return enif_make_badarg(env);
+    }
+    aspk_set.assign((const char*) bin_set.data, bin_set.size);
+
+    if (!enif_inspect_binary(env, argv[2], &bin_key)) {
+	    return enif_make_badarg(env);
+    }
+    aspk_key.assign((const char*) bin_key.data, bin_key.size);
+
+//
+
+    ERL_NIF_TERM rc, msg;
+	as_error err;
+    as_key key;
+    as_record* p_rec = NULL;    
+
+	as_key_init_str(&key, name_space.c_str(), aspk_set.c_str(), aspk_key.c_str());
+
+    if (aerospike_key_get(&as, &err, NULL, &key, &p_rec)  != AEROSPIKE_OK) {
+        if (p_rec != NULL) {
+            as_record_destroy(p_rec);
+        }
+        rc = erl_error;
+        msg = enif_make_string(env, err.message, ERL_NIF_UTF8);
+        return enif_make_tuple2(env, rc, msg);
+    }
+    if (p_rec == NULL) {
+        rc = erl_error;
+        msg = enif_make_string(env, "NULL p_rec - internal error", ERL_NIF_UTF8);
+        return enif_make_tuple2(env, rc, msg);
+    }
+
+    msg = dump_binary_records(env, p_rec);
+    rc = erl_ok;
+    if (p_rec != NULL) {
+        as_record_destroy(p_rec);
+    }
+    return enif_make_tuple2(env, rc, msg);
+
+//
 }
 
 static ERL_NIF_TERM key_select(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[])
@@ -985,6 +1095,7 @@ static ErlNifFunc nif_funcs[] = {
     NIF_FUN("key_generation", 3, key_generation),
     NIF_FUN("key_put", 4, key_put),
     NIF_FUN("binary_put", 5, binary_put),
+    NIF_FUN("binary_get", 3, binary_get),
     NIF_FUN("key_remove", 3, key_remove),
     NIF_FUN("key_select", 4, key_select),
     NIF_FUN("nif_node_random", 0, node_random),

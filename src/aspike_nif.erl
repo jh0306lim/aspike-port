@@ -54,7 +54,8 @@
     a_key_put/6,
     foo/1,
     bar/1,
-    binary_put/5
+    binary_put/5,
+    binary_get/3
 ]).
 
 -nifs([
@@ -80,7 +81,8 @@
     a_key_put/6,
     foo/1,
     bar/1,
-    binary_put/5
+    binary_put/5,
+    binary_get/3
 ]).
 
 % -------------------------------------------------------------------------------
@@ -238,6 +240,11 @@ key_get(Key) ->
 % Gets values of all Bin for Key in Namespace Set.
 -spec key_get(string(), string(), string()) -> {ok, [{string(), term()}]} | {error, string()}.
 key_get(Namespace, Set, Key) when is_list(Namespace), is_list(Set), is_list(Key) ->
+    not_loaded(?LINE).
+
+% Gets values of all Bin for Key in Namespace Set.
+-spec binary_get(binary(), binary(), binary()) -> {ok, [{binary(), term()}]} | {error, string()}.
+binary_get(Namespace, Set, Key) when is_binary(Namespace), is_binary(Set), is_binary(Key) ->
     not_loaded(?LINE).
 
 key_generation() ->
