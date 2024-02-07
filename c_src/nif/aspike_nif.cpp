@@ -3,6 +3,7 @@
 #include <time.h>
 #include <string>
 #include <utility>
+#include <iostream>
 
 #include <aerospike/aerospike.h>
 #include <aerospike/aerospike_info.h>
@@ -519,9 +520,11 @@ static ERL_NIF_TERM format_value_out(ErlNifEnv* env, as_val_t type, as_bin_value
         case AS_STRING:
         case AS_BYTES: {
             //
+            std::cout << "FVO type: " << type << "\r\n";
             as_bytes asbval = val->bytes;
             uint8_t * bin_as_str = as_bytes_get(&asbval);
             auto len = asbval.size;
+            std::cout << "FVO size: " << len << "\r\n";
 
             //
             //char * bin_as_str = as_val_tostring(val);
