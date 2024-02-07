@@ -17,6 +17,8 @@
 #include <aerospike/as_lookup.h>
 #include <aerospike/as_bin.h>
 #include <aerospike/as_val.h>
+#include <aerospike/as_arraylist.h>
+
 
 // ----------------------------------------------------------------------------
 
@@ -223,6 +225,7 @@ static ERL_NIF_TERM binary_put(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv
         int t_length;
         const ERL_NIF_TERM* tuple = NULL;
         as_bytes as_bytes_val;
+        unsigned int ts_length;
 
         if (!enif_get_list_cell(env, list, &head, &tail)) {
             break;
@@ -237,13 +240,33 @@ static ERL_NIF_TERM binary_put(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv
         bin_str.assign((const char*) bin_bin.data, bin_bin.size);
 
         if (!enif_inspect_binary(env, tuple[1], &bin_val)) {
-            return enif_make_badarg(env);
+            if (!enif_is_list(env, tuple[1]) || !enif_get_list_length(env, tuple[1], &ts_length)) {
+                return enif_make_badarg(env);
+            }
+            // expecting list of integers
+            as_list* as_list_ofints = (as_list *)as_arraylist_new((uint32_t)ts_length, 0);
+            for (uint ts_i = 0; ts_i < ts_length; ts_i++) {
+                ERL_NIF_TERM ts_head;
+                ERL_NIF_TERM ts_tail;
+                long i64;
+                if (!enif_get_list_cell(env, tuple[1], &ts_head, &ts_tail)) {
+                    break;
+                }
+                if(enif_get_int64(env, ts_head, &i64)){
+                    std::cout << "insertind INT: " << i64 << "\r\n";
+                    as_list_append_int64(as_list_ofints, i64);
+                }else{
+                    std::cout << "Not INT: " << i64 << "\r\n";
+                }
+            }
+            as_record_set_list(&rec, bin_str.c_str(), as_list_ofints);
+            //
+        }else{
+            as_bytes_init_wrap(&as_bytes_val, bin_val.data, bin_val.size, true);
+            as_bytes_set_type(&as_bytes_val, AS_BYTES_BLOB); // AS_BYTES_BLOB
+            as_record_set_bytes(&rec, bin_str.c_str(), &as_bytes_val);
         }
 
-        //as_bytes_inita(as_bytes_val, bin_val.size());
-        as_bytes_init_wrap(&as_bytes_val, bin_val.data, bin_val.size, true);
-        as_bytes_set_type(&as_bytes_val, AS_BYTES_BLOB); // AS_BYTES_BLOB
-        as_record_set_bytes(&rec, bin_str.c_str(), &as_bytes_val);
         list = tail;
     }
 
