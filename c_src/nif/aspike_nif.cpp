@@ -518,8 +518,14 @@ static ERL_NIF_TERM format_value_out(ErlNifEnv* env, as_val_t type, as_bin_value
             return enif_make_int64(env, val->integer.value);
         case AS_STRING:
         case AS_BYTES: {
-            char * bin_as_str = as_val_tostring(val);
-            auto len = strlen(bin_as_str);
+            //
+            as_bytes asbval = val->bytes;
+            uint8_t * bin_as_str = as_bytes_get(&asbval);
+            auto len = asbval.size;
+
+            //
+            //char * bin_as_str = as_val_tostring(val);
+            //auto len = strlen(bin_as_str);
             unsigned char * val_data;
             ERL_NIF_TERM res;
             val_data = enif_make_new_binary(env, len, &res);
