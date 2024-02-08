@@ -244,12 +244,13 @@ static ERL_NIF_TERM binary_put(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv
                 return enif_make_badarg(env);
             }
             // expecting list of integers
+            auto ts_list = tuple[1];
             as_list* as_list_ofints = (as_list *)as_arraylist_new((uint32_t)ts_length, 0);
             for (uint ts_i = 0; ts_i < ts_length; ts_i++) {
                 ERL_NIF_TERM ts_head;
                 ERL_NIF_TERM ts_tail;
                 long i64;
-                if (!enif_get_list_cell(env, tuple[1], &ts_head, &ts_tail)) {
+                if (!enif_get_list_cell(env, ts_list, &ts_head, &ts_tail)) {
                     break;
                 }
                 if(enif_get_int64(env, ts_head, &i64)){
@@ -258,8 +259,10 @@ static ERL_NIF_TERM binary_put(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv
                 }else{
                     std::cout << "Not INT: " << i64 << "\r\n";
                 }
+                ts_list = ts_tail;
             }
             as_record_set_list(&rec, bin_str.c_str(), as_list_ofints);
+            //as_list_destroy(as_list_ofints);??????????
             //
         }else{
             as_bytes_init_wrap(&as_bytes_val, bin_val.data, bin_val.size, true);
