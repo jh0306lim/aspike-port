@@ -261,9 +261,9 @@ static ERL_NIF_TERM binary_put(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv
                 }
                 ts_list = ts_tail;
             }
-            as_record_set_list(&rec, bin_str.c_str(), as_list_ofints);
-            //as_list_destroy(as_list_ofints);??????????
-            //
+            if(!as_record_set_list(&rec, bin_str.c_str(), as_list_ofints)){
+            	as_list_destroy(as_list_ofints);
+            }
         }else{
             as_bytes_init_wrap(&as_bytes_val, bin_val.data, bin_val.size, true);
             as_bytes_set_type(&as_bytes_val, AS_BYTES_BLOB); // AS_BYTES_BLOB
