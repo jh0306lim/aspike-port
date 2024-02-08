@@ -254,10 +254,7 @@ static ERL_NIF_TERM binary_put(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv
                     break;
                 }
                 if(enif_get_int64(env, ts_head, &i64)){
-                    std::cout << "insertind INT: " << i64 << "\r\n";
                     as_list_append_int64(as_list_ofints, i64);
-                }else{
-                    std::cout << "Not INT: " << i64 << "\r\n";
                 }
                 ts_list = ts_tail;
             }
@@ -554,6 +551,14 @@ static ERL_NIF_TERM format_value_out(ErlNifEnv* env, as_val_t type, as_bin_value
             val_data = enif_make_new_binary(env, len, &res);
             memcpy(val_data, bin_as_str, len);
             return res;
+        }break;
+        case AS_LIST: {
+            as_list intlist = val->list;
+            std::cout << "AS_LIST!!!!" << "\r\n";
+            auto len = as_list_size(&intlist);
+            std::cout << "AS_LIST size: " << len << "\r\n";
+            //as_list_foreach(list, list_to_pyobject_each, &convd);
+            return enif_make_int64(env, 7777);
         }break;
         default:
             char * val_as_str = as_val_tostring(val);
