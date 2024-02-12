@@ -233,7 +233,7 @@ static ERL_NIF_TERM binary_put(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv
         std::string bin_str, bin_str_val;
         int t_length;
         const ERL_NIF_TERM* tuple = NULL;
-        as_bytes as_bytes_val;
+        //as_bytes as_bytes_val;
         unsigned int ts_length;
 
         if (!enif_get_list_cell(env, list, &head, &tail)) {
@@ -254,7 +254,8 @@ static ERL_NIF_TERM binary_put(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv
             }
             // expecting list of integers
             auto ts_list = tuple[1];
-            as_list* as_list_ofints = (as_list *)as_arraylist_new((uint32_t)ts_length, 0);
+            //as_list* as_list_ofints = (as_list *)as_arraylist_new((uint32_t)ts_length, 0);
+            as_arraylist* as_list_ofints = as_arraylist_new((uint32_t)ts_length, 0);
             for (uint ts_i = 0; ts_i < ts_length; ts_i++) {
                 ERL_NIF_TERM ts_head;
                 ERL_NIF_TERM ts_tail;
@@ -263,24 +264,30 @@ static ERL_NIF_TERM binary_put(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv
                     break;
                 }
                 if(enif_get_int64(env, ts_head, &i64)){
-                    as_list_append_int64(as_list_ofints, i64);
+                    as_arraylist_append_int64(as_list_ofints, i64);
                 }
                 ts_list = ts_tail;
             }
-            if(!as_record_set_list(&rec, bin_str.c_str(), as_list_ofints)){
-            	as_list_destroy(as_list_ofints);
-            }
+	    ((as_val *)as_list_ofints)->type = AS_LIST;
+            if(!as_record_set_list(&rec, bin_str.c_str(), (as_list*)as_list_ofints)){
+            	as_list_destroy((as_list*)as_list_ofints);
+            };
         }else{
-            as_bytes_init_wrap(&as_bytes_val, bin_val.data, bin_val.size, true);
-            as_bytes_set_type(&as_bytes_val, AS_BYTES_BLOB); // AS_BYTES_BLOB
-            as_record_set_bytes(&rec, bin_str.c_str(), &as_bytes_val);
+	    //std::cout << "BINARY:"<< bin_str << " Size:" << bin_val.size  <<" \r\n";
+            //as_bytes_init_wrap(&as_bytes_val, bin_val.data, bin_val.size, true);
+            //as_bytes_set_type(&as_bytes_val, AS_BYTES_BLOB); // AS_BYTES_BLOB
+            //as_record_set_bytes(&rec, bin_str.c_str(), &as_bytes_val);
+            as_bytes * bytes_v = as_bytes_new_wrap(bin_val.data, bin_val.size, true);
+            as_bytes_set_type(bytes_v, AS_BYTES_BLOB); // AS_BYTES_BLOB
+            as_record_set_bytes(&rec, bin_str.c_str(), bytes_v);
+	    //as_bytes_destroy(bytes_v);
         }
 
         list = tail;
     }
-
+	
     if (aerospike_key_put(&as, &err, NULL, &key, &rec)  != AEROSPIKE_OK) {
-        rc = erl_error;;
+        rc = erl_error;
         msg = enif_make_string(env, err.message, ERL_NIF_UTF8);
     } else {
         rc = erl_ok;
