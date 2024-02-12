@@ -4,6 +4,7 @@
 #include <string>
 #include <utility>
 #include <iostream>
+#include <vector>
 
 #include <aerospike/aerospike.h>
 #include <aerospike/aerospike_info.h>
@@ -43,6 +44,14 @@ static bool is_aerospike_initialised = false;
 static bool is_connected = false;
 static ERL_NIF_TERM erl_error;
 static ERL_NIF_TERM erl_ok;
+
+// ----------------------------------------------------------------------------
+
+typedef struct {
+    ErlNifEnv* env;
+    uint32_t count;
+    void *udata;
+} conversion_data;
 
 // ----------------------------------------------------------------------------
 
@@ -536,6 +545,19 @@ static ERL_NIF_TERM key_remove(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv
     return enif_make_tuple2(env, rc, msg);
 }
 
+static bool list_to_termlist_each(as_val *val, void *udata){
+    if (!val) {
+        return false;
+    }
+
+    conversion_data *convd = (conversion_data *)udata;
+    std::vector<ERL_NIF_TERM> *erl_list = (std::vector<ERL_NIF_TERM> *)convd->udata;
+    erl_list->push_back( enif_make_int64(convd->env, as_integer_get((as_integer*)val)) );
+
+    convd->count++;
+    return true;
+}
+
 static ERL_NIF_TERM format_value_out(ErlNifEnv* env, as_val_t type, as_bin_value *val) {
     switch(type) {
         case AS_INTEGER:
@@ -553,12 +575,15 @@ static ERL_NIF_TERM format_value_out(ErlNifEnv* env, as_val_t type, as_bin_value
             return res;
         }break;
         case AS_LIST: {
-            as_list intlist = val->list;
-            std::cout << "AS_LIST!!!!" << "\r\n";
-            auto len = as_list_size(&intlist);
-            std::cout << "AS_LIST size: " << len << "\r\n";
-            //as_list_foreach(list, list_to_pyobject_each, &convd);
-            return enif_make_int64(env, 7777);
+            auto len = as_list_size((as_list *)(&val->list));
+	    std::vector<ERL_NIF_TERM> * erl_list = new std::vector<ERL_NIF_TERM>();
+	    erl_list->reserve(len);
+
+	    conversion_data convd = {
+        	.env = env, .count = 0, .udata = erl_list};
+
+            as_list_foreach((as_list *)(&val->list), list_to_termlist_each, &convd);
+	    return enif_make_list_from_array(env, erl_list->data(), len);
         }break;
         default:
             char * val_as_str = as_val_tostring(val);
@@ -567,6 +592,8 @@ static ERL_NIF_TERM format_value_out(ErlNifEnv* env, as_val_t type, as_bin_value
             return res;
     }
 }
+
+
 
 static ERL_NIF_TERM dump_records(ErlNifEnv* env, const as_record *p_rec) {
     ERL_NIF_TERM res;
