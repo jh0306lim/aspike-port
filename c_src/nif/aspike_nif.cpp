@@ -279,8 +279,9 @@ static ERL_NIF_TERM binary_put(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv
             //as_record_set_bytes(&rec, bin_str.c_str(), &as_bytes_val);
             as_bytes * bytes_v = as_bytes_new_wrap(bin_val.data, bin_val.size, true);
             as_bytes_set_type(bytes_v, AS_BYTES_BLOB); // AS_BYTES_BLOB
-            as_record_set_bytes(&rec, bin_str.c_str(), bytes_v);
-	    //as_bytes_destroy(bytes_v);
+            if(!as_record_set_bytes(&rec, bin_str.c_str(), bytes_v)){
+	    	as_bytes_destroy(bytes_v);
+	    }
         }
 
         list = tail;
