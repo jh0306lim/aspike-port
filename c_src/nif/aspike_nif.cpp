@@ -225,6 +225,7 @@ static ERL_NIF_TERM binary_put(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv
 	as_key_init_str(&key, name_space.c_str(), aspk_set.c_str(), aspk_key.c_str());
 	as_record_inita(&rec, length);
     rec.ttl = ttl;
+    long ret_val = 0;
     
     for (uint i = 0; i < length; i++) {
         ERL_NIF_TERM head;
@@ -271,20 +272,32 @@ static ERL_NIF_TERM binary_put(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv
 	    ((as_val *)as_list_ofints)->type = AS_LIST;
             if(!as_record_set_list(&rec, bin_str.c_str(), (as_list*)as_list_ofints)){
             	as_list_destroy((as_list*)as_list_ofints);
+		ret_val = 1;
             };
         }else{
 	    //std::cout << "BINARY:"<< bin_str << " Size:" << bin_val.size  <<" \r\n";
             //as_bytes_init_wrap(&as_bytes_val, bin_val.data, bin_val.size, true);
             //as_bytes_set_type(&as_bytes_val, AS_BYTES_BLOB); // AS_BYTES_BLOB
             //as_record_set_bytes(&rec, bin_str.c_str(), &as_bytes_val);
-            as_bytes * bytes_v = as_bytes_new_wrap(bin_val.data, bin_val.size, true);
+            
+	    /*as_bytes * bytes_v = as_bytes_new_wrap(bin_val.data, bin_val.size, true);
             as_bytes_set_type(bytes_v, AS_BYTES_BLOB); // AS_BYTES_BLOB
             if(!as_record_set_bytes(&rec, bin_str.c_str(), bytes_v)){
 	    	as_bytes_destroy(bytes_v);
+	    }*/
+	    
+	    as_bytes * bytes_v = as_bytes_new(bin_val.size);
+	    as_bytes_set(bytes_v, 0, (const uint8_t *)bin_val.data, bin_val.size);
+	    if(!as_record_set_bytes(&rec, bin_str.c_str(), bytes_v)){
+		as_bytes_destroy(bytes_v);
+		ret_val = 1;
 	    }
         }
 
         list = tail;
+    }
+    if(!ret_val){
+	// destroy heap record
     }
 	
     if (aerospike_key_put(&as, &err, NULL, &key, &rec)  != AEROSPIKE_OK) {
