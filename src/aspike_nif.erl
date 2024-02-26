@@ -53,7 +53,9 @@
     a_key_put/1,
     a_key_put/6,
     foo/1,
-    bar/1
+    bar/1,
+    binary_put/5,
+    binary_get/3
 ]).
 
 -nifs([
@@ -78,7 +80,9 @@
     % --------------------------------------
     a_key_put/6,
     foo/1,
-    bar/1
+    bar/1,
+    binary_put/5,
+    binary_get/3
 ]).
 
 % -------------------------------------------------------------------------------
@@ -194,6 +198,11 @@ key_put(Namespace, Set, Key, Lst) when
 ->
     not_loaded(?LINE).
 
+-spec binary_put(binary(), binary(), binary(), [{binary(), binary()}], integer()) -> 
+    {ok, string()} | {error, string()}.
+binary_put(_Namespace, _Set, _Key, _BinList, _TTL) ->
+    not_loaded(?LINE).
+
 key_remove() ->
     key_remove(?DEFAULT_KEY).
 
@@ -231,6 +240,11 @@ key_get(Key) ->
 % Gets values of all Bin for Key in Namespace Set.
 -spec key_get(string(), string(), string()) -> {ok, [{string(), term()}]} | {error, string()}.
 key_get(Namespace, Set, Key) when is_list(Namespace), is_list(Set), is_list(Key) ->
+    not_loaded(?LINE).
+
+% Gets values of all Bin for Key in Namespace Set.
+-spec binary_get(binary(), binary(), binary()) -> {ok, [{binary(), term()}]} | {error, string()}.
+binary_get(Namespace, Set, Key) when is_binary(Namespace), is_binary(Set), is_binary(Key) ->
     not_loaded(?LINE).
 
 key_generation() ->
@@ -346,3 +360,5 @@ bar(_Y) ->
 % 3> tsl:tst(aspike_nif, key_put, 0, 100000).
 % aspike_nif:key_put, N=0, R=100000, Time=588.68821
 % -----------------------------------------------------------------
+
+
