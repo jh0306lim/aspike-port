@@ -226,7 +226,8 @@ static ERL_NIF_TERM binary_put(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv
 	as_record_inita(&rec, length);
     rec.ttl = ttl;
     long ret_val = 0;
-    
+   
+    std::vector<as_bytes*> bin_vec; 
     for (uint i = 0; i < length; i++) {
         ERL_NIF_TERM head;
         ERL_NIF_TERM tail;
@@ -275,25 +276,14 @@ static ERL_NIF_TERM binary_put(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv
 		ret_val = 1;
             };
         }else{
-	    //std::cout << "BINARY:"<< bin_str << " Size:" << bin_val.size  <<" \r\n";
-            //as_bytes_init_wrap(&as_bytes_val, bin_val.data, bin_val.size, true);
-            //as_bytes_set_type(&as_bytes_val, AS_BYTES_BLOB); // AS_BYTES_BLOB
-            //as_record_set_bytes(&rec, bin_str.c_str(), &as_bytes_val);
-            
-	    /*as_bytes * bytes_v = as_bytes_new_wrap(bin_val.data, bin_val.size, true);
-            as_bytes_set_type(bytes_v, AS_BYTES_BLOB); // AS_BYTES_BLOB
-            if(!as_record_set_bytes(&rec, bin_str.c_str(), bytes_v)){
-	    	as_bytes_destroy(bytes_v);
-	    }*/
-	    
-	    as_bytes * bytes_v = as_bytes_new(bin_val.size);
+	    bin_vec.push_back(as_bytes_new(bin_val.size));
+	    as_bytes * bytes_v = bin_vec.back();
 	    as_bytes_set(bytes_v, 0, (const uint8_t *)bin_val.data, bin_val.size);
 	    if(!as_record_set_bytes(&rec, bin_str.c_str(), bytes_v)){
 		as_bytes_destroy(bytes_v);
 		ret_val = 1;
 	    }
         }
-
         list = tail;
     }
     if(!ret_val){
@@ -306,6 +296,9 @@ static ERL_NIF_TERM binary_put(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv
     } else {
         rc = erl_ok;
         msg = enif_make_string(env, "key_put", ERL_NIF_UTF8);
+    }
+    for(unsigned int i = 0; i < bin_vec.size(); i++){
+	as_bytes_destroy(bin_vec[i]);
     }
 
     return enif_make_tuple2(env, rc, msg);
