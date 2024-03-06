@@ -5,7 +5,10 @@
    sp_insert/5,
    sp_insert/2,
    sp_insert/1,
-   mp_insert/3
+   mp_insert/3,
+   sp_read/2,
+   sp_read/8,
+   mp_reads/3
 ]).
 
 % single process insert
@@ -52,3 +55,46 @@ mp_insert(NProc, N, Sleep) ->
 	io:format("Process ~p ret: ~p ~n", [E, Ret]) 
      end)
    end, lists:seq(1, NProc)).
+
+mp_reads(NProc, N, Sleep) ->
+   lists:map(fun(E) -> 
+     spawn(fun() ->
+	Ret = sp_read(<<"rtb-gateway">>, <<"nif_perf_set">>, N, Sleep, 1_000_000_000_000 * E, 0, 0, 0),
+	io:format("Process ~p ret: ~p ~n", [E, Ret]) 
+     end)
+   end, lists:seq(1, NProc)).
+
+sp_read(N, Sleep) ->
+   T1 = erlang:system_time(microsecond),
+   Ret = sp_read(<<"rtb-gateway">>, <<"nif_perf_set">>, N, Sleep, 1_000_000_000_000, 0, 0, 0),
+   T = erlang:system_time(microsecond) - T1,
+   Avg = (T - (Sleep * 1000)*N)/N,
+   {Ret, {T, Avg}}.
+sp_read(_, _, 0, _, _, Oks, Nfs, Errs) -> {Oks, Nfs, Errs};
+sp_read(Namespace, Set, N, Sleep, AddP, Oks, Nfs, Errs) ->
+   case N rem 1000 of
+     0 -> io:format("N: ~p ~n", [N]);
+     _ -> ok
+   end,
+   Key = integer_to_binary(N + AddP),
+   {Oks1, Nfs1, Errs1} = case aspike_nif:binary_get(Namespace, Set, Key) of
+      {ok, Ret} ->
+	  case check_ret(Ret) of
+	     true -> {Oks+1, Nfs, Errs};
+	     _ -> {Oks, Nfs, Errs+1}
+          end; 
+      {error, ERet} ->
+	  case string:str(ERet, "AEROSPIKE_ERR_RECORD_NOT_FOUND") of
+	    0 -> {Oks, Nfs, Errs+1};
+            _ -> {Oks, Nfs+1, Errs}
+          end
+   end,
+   sp_read(Namespace, Set, N-1, Sleep, AddP, Oks1, Nfs1, Errs1).
+
+check_ret(Ret) ->
+   Bins = [
+      {<<"column1">>, <<"fcap">>},
+      {<<"column2">>, <<"campaign.164206.3684975">>},
+      {<<"timestamps">>, <<0,0,0,0,0,0,0,2,0,0,0,0,101,231,111,33,0,0,0,0,101,231,64,10>>}
+   ],
+   lists:all(fun(E) -> E =:= true end,  [proplists:get_value(K, Ret, undefined) == V || {K,V} <- Bins]).
