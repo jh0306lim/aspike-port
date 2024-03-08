@@ -8,7 +8,11 @@
    mp_insert/3,
    sp_read/2,
    sp_read/8,
-   mp_reads/3
+   mp_reads/3,
+
+   rand_read/2,
+   rand_read/8,
+   mp_rand_reads/3
 ]).
 
 % single process insert
@@ -90,6 +94,47 @@ sp_read(Namespace, Set, N, Sleep, AddP, Oks, Nfs, Errs) ->
           end
    end,
    sp_read(Namespace, Set, N-1, Sleep, AddP, Oks1, Nfs1, Errs1).
+
+
+mp_rand_reads(NProc, N, Sleep) ->
+   lists:map(fun(E) -> 
+     spawn(fun() ->
+	Ret = rand_read(<<"rtb-gateway">>, <<"nif_perf_set">>, N, Sleep, 1_000_000_000_000, 0, 0, 0),
+	io:format("Process ~p ret: ~p ~n", [E, Ret]) 
+     end)
+   end, lists:seq(1, NProc)).
+
+rand_read(N, Sleep) ->
+   T1 = erlang:system_time(microsecond),
+   Ret = sp_read(<<"rtb-gateway">>, <<"nif_perf_set">>, N, Sleep, 1_000_000_000_000, 0, 0, 0),
+   T = erlang:system_time(microsecond) - T1,
+   Avg = (T - (Sleep * 1000)*N)/N,
+   {Ret, {T, Avg}}.
+rand_read(_, _, 0, _, _, Oks, Nfs, Errs) -> {Oks, Nfs, Errs};
+rand_read(Namespace, Set, N, Sleep, AddP, Oks, Nfs, Errs) ->
+   case N rem 1000 of
+     0 -> io:format("N: ~p ~n", [N]);
+     _ -> ok
+   end,
+   Rand = rand:uniform(1_000_000),
+   Key = integer_to_binary(Rand + AddP),
+   {Oks1, Nfs1, Errs1} = case aspike_nif:binary_get(Namespace, Set, Key) of
+      {ok, Ret} ->
+	  case check_ret(Ret) of
+	     true -> {Oks+1, Nfs, Errs};
+	     _ -> {Oks, Nfs, Errs+1}
+          end; 
+      {error, ERet} ->
+	  case string:str(ERet, "AEROSPIKE_ERR_RECORD_NOT_FOUND") of
+	    0 -> {Oks, Nfs, Errs+1};
+            _ -> {Oks, Nfs+1, Errs}
+          end
+   end,
+   case Sleep of
+      SI when is_integer(SI), SI > 1 -> timer:sleep(rand:uniform(SI));
+      _ -> ok
+   end,
+   rand_read(Namespace, Set, N-1, Sleep, AddP, Oks1, Nfs1, Errs1).
 
 check_ret(Ret) ->
    Bins = [
