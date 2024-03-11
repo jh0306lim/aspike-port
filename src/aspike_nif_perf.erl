@@ -12,7 +12,8 @@
 
    rand_read/2,
    rand_read/8,
-   mp_rand_reads/3
+   mp_rand_reads/3,
+   infinite_test/4
 ]).
 
 % single process insert
@@ -31,8 +32,8 @@ sp_insert(Namespace, Set, N, TTL, Sleep) ->
 
 sp_insert(_, _, 0, _, _, _, Oks, Errs) -> {Oks, Errs};
 sp_insert(Namespace, Set, N, TTL, Sleep, AddP, Oks, Errs) ->
-   case N rem 1000 of
-     0 -> io:format("N: ~p ~n", [N]);
+   case N rem 10000 of
+     0 -> io:format("write N: ~p ~n", [N]);
      _ -> ok
    end,
    Key = integer_to_binary(N + AddP),
@@ -48,7 +49,7 @@ sp_insert(Namespace, Set, N, TTL, Sleep, AddP, Oks, Errs) ->
 
    case Sleep of
      0 -> ok;
-     _ -> timer:sleep(Sleep)
+     _ -> timer:sleep(rand:uniform(Sleep))
    end,
    sp_insert(Namespace, Set, N-1, TTL, Sleep, AddP, O1, E1).
 
@@ -56,7 +57,7 @@ mp_insert(NProc, N, Sleep) ->
    lists:map(fun(E) -> 
      spawn(fun() ->
 	Ret = sp_insert(<<"rtb-gateway">>, <<"nif_perf_set">>, N, 3600, Sleep, 1_000_000_000_000 * E, 0, 0),
-	io:format("Process ~p ret: ~p ~n", [E, Ret]) 
+	io:format("Insert Process ~p ret: ~p ~n", [E, Ret])
      end)
    end, lists:seq(1, NProc)).
 
@@ -64,7 +65,7 @@ mp_reads(NProc, N, Sleep) ->
    lists:map(fun(E) -> 
      spawn(fun() ->
 	Ret = sp_read(<<"rtb-gateway">>, <<"nif_perf_set">>, N, Sleep, 1_000_000_000_000 * E, 0, 0, 0),
-	io:format("Process ~p ret: ~p ~n", [E, Ret]) 
+	io:format("Read Process ~p ret: ~p ~n", [E, Ret])
      end)
    end, lists:seq(1, NProc)).
 
@@ -76,8 +77,8 @@ sp_read(N, Sleep) ->
    {Ret, {T, Avg}}.
 sp_read(_, _, 0, _, _, Oks, Nfs, Errs) -> {Oks, Nfs, Errs};
 sp_read(Namespace, Set, N, Sleep, AddP, Oks, Nfs, Errs) ->
-   case N rem 1000 of
-     0 -> io:format("N: ~p ~n", [N]);
+   case N rem 10000 of
+     0 -> io:format("read N: ~p ~n", [N]);
      _ -> ok
    end,
    Key = integer_to_binary(N + AddP),
@@ -93,6 +94,10 @@ sp_read(Namespace, Set, N, Sleep, AddP, Oks, Nfs, Errs) ->
             _ -> {Oks, Nfs+1, Errs}
           end
    end,
+   case Sleep of
+     0 -> ok;
+     _ -> timer:sleep(rand:uniform(Sleep))
+   end,
    sp_read(Namespace, Set, N-1, Sleep, AddP, Oks1, Nfs1, Errs1).
 
 
@@ -100,7 +105,7 @@ mp_rand_reads(NProc, N, Sleep) ->
    lists:map(fun(E) -> 
      spawn(fun() ->
 	Ret = rand_read(<<"rtb-gateway">>, <<"nif_perf_set">>, N, Sleep, 1_000_000_000_000, 0, 0, 0),
-	io:format("Process ~p ret: ~p ~n", [E, Ret]) 
+	io:format("Process ~p ret: ~p ~n", [E, Ret])
      end)
    end, lists:seq(1, NProc)).
 
@@ -112,8 +117,8 @@ rand_read(N, Sleep) ->
    {Ret, {T, Avg}}.
 rand_read(_, _, 0, _, _, Oks, Nfs, Errs) -> {Oks, Nfs, Errs};
 rand_read(Namespace, Set, N, Sleep, AddP, Oks, Nfs, Errs) ->
-   case N rem 1000 of
-     0 -> io:format("N: ~p ~n", [N]);
+   case N rem 10000 of
+     0 -> io:format("read N: ~p ~n", [N]);
      _ -> ok
    end,
    Rand = rand:uniform(1_000_000),
@@ -143,3 +148,12 @@ check_ret(Ret) ->
       {<<"timestamps">>, <<0,0,0,0,0,0,0,2,0,0,0,0,101,231,111,33,0,0,0,0,101,231,64,10>>}
    ],
    lists:all(fun(E) -> E =:= true end,  [proplists:get_value(K, Ret, undefined) == V || {K,V} <- Bins]).
+
+infinite_test(NProc, Ttl, WSleep, _RSleep) ->
+   lists:map(fun(E) -> 
+     spawn(fun() ->
+	Ret = sp_insert(<<"rtb-gateway">>, <<"nif_perf_set">>, 999_999_999_999, Ttl, WSleep, 1_000_000_000_000 * E, 0, 0),
+	io:format("Insert Process ~p ret: ~p ~n", [E, Ret])
+     end)
+   end, lists:seq(1, NProc)).
+
