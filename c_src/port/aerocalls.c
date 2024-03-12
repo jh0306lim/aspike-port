@@ -504,7 +504,19 @@ int call_connect(const char *buf, int *index, int arity, int fd_out) {
 }
 
 int call_binary_key_put(const char *buf, int *index, int arity, int fd_out) {
+    PRE
+    void *p;
+    long *len;
 
+    if (ei_decode_binary(buf, index, p, len) != 0) {
+        ERROR("invalid first argument: namespace")
+        goto end;
+    } 
+    
+    OK("binary_key_put")
+
+    end:
+    POST
 }
 
 int call_key_put(const char *buf, int *index, int arity, int fd_out) {
