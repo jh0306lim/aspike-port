@@ -18,29 +18,31 @@ C_SRC_OUTPUT ?= $(CURDIR)/../../priv/$(PROJECT)
 
 UNAME_SYS := $(shell uname -s)
 ifeq ($(UNAME_SYS), Darwin)
-	CC ?= gcc
-	CFLAGS ?= -O3 -std=gnu99 -finline-functions -Wall -Wmissing-prototypes
+	CC ?= cc
+	CFLAGS ?= -O3 -std=c99 -finline-functions -Wall -Wmissing-prototypes
 	CXXFLAGS ?= -O3 -finline-functions -Wall -fpermissive
 	LDFLAGS ?= -flat_namespace -undefined suppress
 	AERO_BASE ?= /usr/local
 else ifeq ($(UNAME_SYS), FreeBSD)
 	CC ?= cc
-	CFLAGS ?= -O3 -std=gnu99 -finline-functions -Wall -Wmissing-prototypes
+	CFLAGS ?= -O3 -std=c99 -finline-functions -Wall -Wmissing-prototypes
 	CXXFLAGS ?= -O3 -finline-functions -Wall
 	AERO_BASE ?= /usr
 else ifeq ($(UNAME_SYS), Linux)
 	CC ?= gcc
-	CFLAGS ?= -O3 -std=gnu99 -finline-functions -Wall -Wmissing-prototypes
+	CFLAGS ?= -O3 -std=c99 -finline-functions -Wall -Wmissing-prototypes
 	CXXFLAGS ?= -O3 -finline-functions -Wall
 	AERO_BASE ?= /usr
 endif
+CXXFLAGS += -std=c++11
 
 CFLAGS += -fPIC -I $(ERTS_INCLUDE_DIR) -I $(ERL_INTERFACE_INCLUDE_DIR) -I$(AERO_BASE)/include/aerospike
 CXXFLAGS += -fPIC -I $(ERTS_INCLUDE_DIR) -I $(ERL_INTERFACE_INCLUDE_DIR)
 
 LDLIBS += $(AERO_BASE)/lib/libaerospike.a
 LDLIBS += -L$(ERL_INTERFACE_LIB_DIR) -lei 
-LDLIBS += -L/usr/local/lib -lev -lssl -lcrypto  -lpthread -lm -lz  -lm -lz -ldl
+#LDLIBS += -L/usr/local/lib -lev -lssl -lcrypto  -lpthread -lm -lz  -lm -lz -ldl
+LDLIBS += -L/usr/local/lib -L/usr/local/opt/openssl/lib -lev -lssl -lcrypto  -lpthread -lm -lz  -ldl  -lstdc++
 
 # Verbosity.
 
@@ -64,7 +66,7 @@ $(C_SRC_OUTPUT): $(OBJECTS)
 	$(link_verbose) $(CC) $(OBJECTS) $(LDFLAGS) $(LDLIBS) -o $(C_SRC_OUTPUT)
 
 %.o: %.c
-	$(COMPILE_C) $(OUTPUT_OPTION) $<
+	$(COMPILE_CPP) $(OUTPUT_OPTION) $<
 
 %.o: %.cc
 	$(COMPILE_CPP) $(OUTPUT_OPTION) $<

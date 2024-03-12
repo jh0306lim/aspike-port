@@ -76,13 +76,13 @@ const uint32_t DEFAULT_NUM_KEYS = 20;
 #define CHECK_AEROSPIKE_INIT \
     if (!is_aerospike_initialised) {\
         ERROR("aerospike is not initialise")\
-        goto end;\
+        POST\
     }
 
 #define CHECK_IS_CONNECTED \
     if (!is_connected) {\
         ERROR("not connected")\
-        goto end;\
+        POST\
     }
 
 #define CHECK_INIT CHECK_AEROSPIKE_INIT
@@ -350,7 +350,6 @@ int call_config_info(const char *buf, int *index, int arity, int fd_out){
     ei_x_encode_boolean(&res_buf, config->policies.info.check_bounds);
 
 
-    end:
     POST
 }
 
@@ -375,7 +374,6 @@ int call_cluster_info(const char *buf, int *index, int arity, int fd_out){
     ei_x_encode_string(&res_buf, "n_partitions");
     ei_x_encode_long(&res_buf, cluster->n_partitions);
 
-    end:
     POST
 }
 
@@ -440,7 +438,6 @@ int call_config_clear_hosts(const char *buf, int *index, int arity, int fd_out) 
 
     OK("hosts list was cleared")
 
-    end:
     POST
 }
 
@@ -456,7 +453,7 @@ int call_config_list_hosts(const char *buf, int *index, int arity, int fd_out) {
     OK0
     ei_x_encode_list_header(&res_buf, size);
     for (uint32_t i = 0; i < size; i++) {
-        as_host* host = as_vector_get(hosts, i);
+        as_host* host = (as_host *)as_vector_get(hosts, i);
         if (host->name) {
             ei_x_encode_tuple_header(&res_buf, 3);
             ei_x_encode_string(&res_buf, host->name);
@@ -466,7 +463,6 @@ int call_config_list_hosts(const char *buf, int *index, int arity, int fd_out) {
     }
     ei_x_encode_empty_list(&res_buf);
 
-    end:
     POST
 }
 
@@ -507,12 +503,12 @@ int call_connect(const char *buf, int *index, int arity, int fd_out) {
 int call_key_put(const char *buf, int *index, int arity, int fd_out) {
     PRE
 
-    char namespace[MAX_NAMESPACE_SIZE];
+    char vnamesapce[MAX_NAMESPACE_SIZE];
     char set[MAX_SET_SIZE];
     char key_str[MAX_KEY_STR_SIZE];
     int length;
 
-    if (ei_decode_string(buf, index, namespace) != 0) {
+    if (ei_decode_string(buf, index, vnamesapce) != 0) {
         ERROR("invalid first argument: namespace")
         goto end;
     } 
@@ -532,7 +528,7 @@ int call_key_put(const char *buf, int *index, int arity, int fd_out) {
     CHECK_ALL
 
     as_key key;
-	as_key_init_str(&key, namespace, set, key_str);
+	as_key_init_str(&key, vnamesapce, set, key_str);
 
 	as_record rec;
 	as_record_inita(&rec, length);
@@ -575,12 +571,12 @@ int call_key_put(const char *buf, int *index, int arity, int fd_out) {
 int call_key_inc(const char *buf, int *index, int arity, int fd_out) {
     PRE
 
-    char namespace[MAX_NAMESPACE_SIZE];
+    char vnamesapce[MAX_NAMESPACE_SIZE];
     char set[MAX_SET_SIZE];
     char key_str[MAX_KEY_STR_SIZE];
     int length;
 
-    if (ei_decode_string(buf, index, namespace) != 0) {
+    if (ei_decode_string(buf, index, vnamesapce) != 0) {
         ERROR("invalid first argument: namespace")
         goto end;
     } 
@@ -600,7 +596,7 @@ int call_key_inc(const char *buf, int *index, int arity, int fd_out) {
     CHECK_ALL
 
     as_key key;
-	as_key_init_str(&key, namespace, set, key_str);
+	as_key_init_str(&key, vnamesapce, set, key_str);
 
     as_operations ops;
 	as_operations_inita(&ops, length);
@@ -642,11 +638,11 @@ int call_key_inc(const char *buf, int *index, int arity, int fd_out) {
 int call_key_remove(const char *buf, int *index, int arity, int fd_out) {
     PRE
 
-    char namespace[MAX_NAMESPACE_SIZE];
+    char vnamesapce[MAX_NAMESPACE_SIZE];
     char set[MAX_SET_SIZE];
     char key_str[MAX_KEY_STR_SIZE];
 
-    if (ei_decode_string(buf, index, namespace) != 0) {
+    if (ei_decode_string(buf, index, vnamesapce) != 0) {
         ERROR("invalid first argument: namespace")
         goto end;
     } 
@@ -662,7 +658,7 @@ int call_key_remove(const char *buf, int *index, int arity, int fd_out) {
     CHECK_ALL
 
     as_key key;
-	as_key_init_str(&key, namespace, set, key_str);
+	as_key_init_str(&key, vnamesapce, set, key_str);
 
 	as_error err;
     
@@ -682,43 +678,43 @@ int call_key_remove(const char *buf, int *index, int arity, int fd_out) {
 int call_key_exists(const char *buf, int *index, int arity, int fd_out) {
     PRE
 
-    char namespace[MAX_NAMESPACE_SIZE];
+    char vnamesapce[MAX_NAMESPACE_SIZE];
     char set[MAX_SET_SIZE];
     char key_str[MAX_KEY_STR_SIZE];
     as_record* p_rec = NULL;
 
-    if (ei_decode_string(buf, index, namespace) != 0) {
+    if (ei_decode_string(buf, index, vnamesapce) != 0) {
         ERROR("invalid first argument: namespace")
-        goto end;
+        POST
     } 
     if (ei_decode_string(buf, index, set) != 0) {
         ERROR("invalid second argument: set")
-        goto end;
+        POST
     } 
     if (ei_decode_string(buf, index, key_str) != 0) {
         ERROR("invalid third argument: key_str")
-        goto end;
+        POST
     } 
 
     CHECK_ALL
 
     as_key key;
-	as_key_init_str(&key, namespace, set, key_str);
+	as_key_init_str(&key, vnamesapce, set, key_str);
 	as_error err;
     
     int as_rc = aerospike_key_exists(&as, &err, NULL, &key, &p_rec);
 
 	if (as_rc != AEROSPIKE_OK) {
         ERROR(err.message)
-        goto end;
+        POST
 	}
 
     OK("true")
 
-    end:
     if (p_rec != NULL) {
         as_record_destroy(p_rec);
     }
+
     POST
 }
 
@@ -771,12 +767,12 @@ static int dump_records(ei_x_buff *p_res_buf, const as_record *p_rec) {
 int call_key_get(const char *buf, int *index, int arity, int fd_out) {
     PRE
 
-    char namespace[MAX_NAMESPACE_SIZE];
+    char vnamesapce[MAX_NAMESPACE_SIZE];
     char set[MAX_SET_SIZE];
     char key_str[MAX_KEY_STR_SIZE];
     as_record* p_rec = NULL;    
 
-    if (ei_decode_string(buf, index, namespace) != 0) {
+    if (ei_decode_string(buf, index, vnamesapce) != 0) {
         ERROR("invalid first argument: namespace")
         goto end;
     } 
@@ -792,7 +788,7 @@ int call_key_get(const char *buf, int *index, int arity, int fd_out) {
     CHECK_ALL
 
     as_key key;
-	as_key_init_str(&key, namespace, set, key_str);
+	as_key_init_str(&key, vnamesapce, set, key_str);
 	as_error err;
 
     // Get the record from the database.
@@ -813,7 +809,7 @@ int call_key_get(const char *buf, int *index, int arity, int fd_out) {
 int call_key_select(const char *buf, int *index, int arity, int fd_out) {
     PRE
 
-    char namespace[MAX_NAMESPACE_SIZE];
+    char vnamesapce[MAX_NAMESPACE_SIZE];
     char set[MAX_SET_SIZE];
     char key_str[MAX_KEY_STR_SIZE];
     as_record* p_rec = NULL;    
@@ -821,7 +817,7 @@ int call_key_select(const char *buf, int *index, int arity, int fd_out) {
     const char *bins[MAX_BINS_NUMBER];
     int i = 0;
 
-    if (ei_decode_string(buf, index, namespace) != 0) {
+    if (ei_decode_string(buf, index, vnamesapce) != 0) {
         ERROR("invalid first argument: namespace")
         goto end;
     } 
@@ -856,7 +852,7 @@ int call_key_select(const char *buf, int *index, int arity, int fd_out) {
     bins[i] = NULL;
 
     as_key key;
-	as_key_init_str(&key, namespace, set, key_str);
+	as_key_init_str(&key, vnamesapce, set, key_str);
 	as_error err;
 
     if (aerospike_key_select(&as, &err, NULL, &key, bins, &p_rec)  != AEROSPIKE_OK) {
@@ -880,12 +876,12 @@ int call_key_select(const char *buf, int *index, int arity, int fd_out) {
 int call_key_generation(const char *buf, int *index, int arity, int fd_out) {
     PRE
 
-    char namespace[MAX_NAMESPACE_SIZE];
+    char vnamesapce[MAX_NAMESPACE_SIZE];
     char set[MAX_SET_SIZE];
     char key_str[MAX_KEY_STR_SIZE];
     as_record* p_rec = NULL;    
 
-    if (ei_decode_string(buf, index, namespace) != 0) {
+    if (ei_decode_string(buf, index, vnamesapce) != 0) {
         ERROR("invalid first argument: namespace")
         goto end;
     } 
@@ -901,7 +897,7 @@ int call_key_generation(const char *buf, int *index, int arity, int fd_out) {
     CHECK_ALL
 
     as_key key;
-	as_key_init_str(&key, namespace, set, key_str);
+	as_key_init_str(&key, vnamesapce, set, key_str);
 	as_error err;
 
     // Get the record from the database.
@@ -948,7 +944,7 @@ int call_node_names(const char *buf, int *index, int arity, int fd_out) {
 
     OK0
     ei_x_encode_list_header(&res_buf, n_nodes);
-    for(int i = 0; i < n_nodes; i++){
+    for(unsigned int i = 0; i < n_nodes; i++){
         as_node* node = nodes->array[i];
         ei_x_encode_tuple_header(&res_buf, 2);
         ei_x_encode_string(&res_buf, node->name);
@@ -956,7 +952,6 @@ int call_node_names(const char *buf, int *index, int arity, int fd_out) {
     }
     ei_x_encode_empty_list(&res_buf);
     as_nodes_release(nodes);
-    end:
     POST
 }
 
@@ -965,19 +960,18 @@ int call_node_get(const char *buf, int *index, int arity, int fd_out) {
     char node_name[AS_NODE_NAME_MAX_SIZE];
     if (ei_decode_string(buf, index, node_name) != 0) {
         ERROR("invalid first argument: node_name")
-        goto end;
+        POST
     }
     CHECK_ALL
 
     as_node* node = as_node_get_by_name(as.cluster, node_name);
     if (! node) {
         ERROR("Failed to find server node.");
-        goto end;
+        POST
 	}
     OK(as_node_get_address_string(node))
     as_node_release(node);
 
-    end:
     POST
 }
 
@@ -989,11 +983,11 @@ int call_node_info(const char *buf, int *index, int arity, int fd_out) {
 
     if (ei_decode_string(buf, index, node_name) != 0) {
         ERROR("invalid first argument: node_name")
-        goto end;
+        POST
     }
     if (ei_decode_string(buf, index, item) != 0) {
         ERROR("invalid second argument: item")
-        goto end;
+        POST
     }
     CHECK_ALL
 
@@ -1001,7 +995,7 @@ int call_node_info(const char *buf, int *index, int arity, int fd_out) {
     node = as_node_get_by_name(cluster, node_name);
     if (! node) {
         ERROR("Failed to find server node.");
-        goto end;
+        POST
 	}
 
     char *info = NULL;
@@ -1013,12 +1007,12 @@ int call_node_info(const char *buf, int *index, int arity, int fd_out) {
     status = as_info_command_node(&err, node, (char*)item, policy->send_as_is, deadline, &info);
     if (status != AEROSPIKE_OK) {
         ERROR(err.in_doubt == true ? "unknown error" : err.message)
-        goto end;
+        POST
     }
 
     if (info == NULL) {
         ERROR("no data")
-        goto end;
+        POST
     }
 
     OK0
@@ -1027,7 +1021,6 @@ int call_node_info(const char *buf, int *index, int arity, int fd_out) {
     ei_x_encode_empty_list(&res_buf);
     free(info);
 
-    end:
     as_node_release(node);
     POST
 }
@@ -1039,15 +1032,15 @@ int call_host_info(const char *buf, int *index, int arity, int fd_out) {
     long port;
     if (ei_decode_string(buf, index, hostname) != 0) {
         ERROR("invalid first argument: hostname")
-        goto end;
+        POST
     }
     if (ei_decode_long(buf, index, &port) != 0) {
         ERROR("invalid second argument: port")
-        goto end;
+        POST
     }
     if (ei_decode_string(buf, index, item) != 0) {
         ERROR("invalid third argument: item")
-        goto end;
+        POST
     }
     CHECK_ALL
 
@@ -1058,7 +1051,7 @@ int call_host_info(const char *buf, int *index, int arity, int fd_out) {
 	
 	if (status) {
         ERROR(err.in_doubt == true ? "unknown error" : err.message)
-        goto end;
+        POST
 	}
     
 	as_cluster* cluster = as.cluster;
@@ -1087,7 +1080,7 @@ int call_host_info(const char *buf, int *index, int arity, int fd_out) {
 
     if(info == NULL){
         ERROR("no data")
-        goto end;
+        POST
     }
 
     OK0
@@ -1097,7 +1090,6 @@ int call_host_info(const char *buf, int *index, int arity, int fd_out) {
     free(&info[0]);
 
 
-    end:
     POST
 }
 
@@ -1106,7 +1098,7 @@ int call_help(const char *buf, int *index, int arity, int fd_out) {
     char item[1024];
     if (ei_decode_string(buf, index, item) != 0) {
         ERROR("invalid first argument: item")
-        goto end;
+        POST
     } 
 
     CHECK_ALL  
@@ -1118,17 +1110,17 @@ int call_help(const char *buf, int *index, int arity, int fd_out) {
     rc = aerospike_info_any(&as, &err, NULL, item, &info);
 	if (rc != AEROSPIKE_OK) {
         ERROR(err.in_doubt == true ? "unknown error" : err.message)
-        goto end;
+        POST
 	}
 
     if(info == NULL){
         ERROR("no data")
-        goto end;
+        POST
     }
 
     OK(info)
     free(info);
 
-    end:
     POST
 }
+
