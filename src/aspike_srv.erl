@@ -65,6 +65,7 @@
     key_get/0,
     key_get/1,
     key_get/3,
+    binary_key_get/3
     key_generation/0,
     key_generation/1,
     key_generation/3,
@@ -72,6 +73,7 @@
     key_put/1,
     key_put/2,
     key_put/4,
+    binary_key_put/5,
     key_select/0,
     key_select/1,
     key_select/2,
@@ -223,6 +225,12 @@ key_put(Namespace, Set, Key, Lst) when
     is_list(Namespace), is_list(Set), is_list(Key), is_list(Lst)
 ->
     command({key_put, Namespace, Set, Key, Lst}).
+
+-spec binary_key_put(binary(), binary(), binary(), [{binary(), binary()|integer()}], integer()) ->
+    {ok, string()} | {error, string()}.
+binary_key_put(Namespace, Set, Key, Lst, TTL) when
+    is_binary(Namespace), is_binary(Set), is_binary(Key), is_integer(TTL) ->
+    command({binary_key_put, Namespace, Set, Key, Lst, TTL}).
 
 key_remove() ->
     key_remove(?DEFAULT_KEY).

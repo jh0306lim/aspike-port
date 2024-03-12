@@ -228,6 +228,9 @@ int function_call(const char *buf, int *index, int arity, int fd_out) {
     if (check_name(fname, "key_put", arity, 5)) {
         return call_key_put(buf, index, arity, fd_out);
     }
+    if (check_name(fname, "binary_key_put", arity, 6)) {
+        return call_binary_key_put(buf, index, arity, fd_out);
+    }
     if (check_name(fname, "key_remove", arity, 4)) {
         return call_key_remove(buf, index, arity, fd_out);
     }
@@ -498,6 +501,10 @@ int call_connect(const char *buf, int *index, int arity, int fd_out) {
 
     end:
     POST
+}
+
+int call_binary_key_put(const char *buf, int *index, int arity, int fd_out) {
+
 }
 
 int call_key_put(const char *buf, int *index, int arity, int fd_out) {
