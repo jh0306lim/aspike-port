@@ -6,7 +6,8 @@
 #include <cstring>
 #include <string>
 #include <fstream>
-#include<iostream>
+#include <iostream>
+#include <vector>
 
 #include <aerospike/aerospike.h>
 #include <aerospike/aerospike_info.h>
@@ -152,6 +153,7 @@ int call_help(const char *buf, int *index, int arity, int fd_out);
 
 int call_foo(const char *buf, int *index, int arity, int fd_out);
 int call_bar(const char *buf, int *index, int arity, int fd_out);
+void logfile(std::string str);
 
 char err_msg[8][80] = {
     "ei_decode_version",
@@ -529,11 +531,14 @@ int decode_bin_term(const char *buf, int *index, std::string& ds){
 	return -2;
     }
 
-    char ns[term_size];
+    logfile("bin term size:" + std::to_string(term_size));
+    char ns[term_size+1];
     if (ei_decode_binary(buf, index, ns, &len) < 0) {
 	return -2;
     }
+    ns[len] = '\0';
     ds = std::string(ns);
+    logfile("bin term str size:" + std::to_string(ds.size()));
     
     return 0;
 }
@@ -586,7 +591,8 @@ int call_binary_key_put(const char *buf, int *index, int arity, int fd_out) {
     int t_length;
     std::string bin_name, bin_str_value;
     long bin_int_value;
-
+    std::vector<as_bytes*> bin_vec;
+    int ret_val = 0; 
     for (int i = 0; i < bin_list_length; i++) {
         if (ei_decode_tuple_header(buf, index, &t_length) != 0 || t_length != 2)
             {STOPERROR("invalid tuple")}
@@ -597,10 +603,19 @@ int call_binary_key_put(const char *buf, int *index, int arity, int fd_out) {
 	     {STOPERROR("BKP invalid bin value type (should be binary or integer)")}
 
         if((term_type == ERL_BINARY_EXT) && (decode_bin_term(buf, index, bin_str_value) == 0)){
-    	   logfile("bin str value:" + bin_str_value);
+    	    logfile("bin str value:" + bin_str_value);
+	    bin_vec.push_back(as_bytes_new(bin_str_value.size()));
+	    as_bytes * bytes_v = bin_vec.back();
+	    as_bytes_set(bytes_v, 0, (const uint8_t *)bin_str_value.c_str(), bin_str_value.size());
+	    if(!as_record_set_bytes(&rec, bin_name.c_str(), bytes_v)){
+		as_bytes_destroy(bytes_v);
+		ret_val = 1;
+    	   	logfile("record str value ok");
+	    }
  	} else if((term_type == ERL_SMALL_INTEGER_EXT) || (term_type == ERL_INTEGER_EXT)){
            if(ei_decode_long(buf, index, &bin_int_value) == 0){
     	   	logfile("bin int value:" + std::to_string(bin_int_value));
+    	        as_record_set_int64(&rec, bin_name.c_str(), bin_int_value);
            }
         }
      
@@ -608,14 +623,23 @@ int call_binary_key_put(const char *buf, int *index, int arity, int fd_out) {
     ei_decode_list_header(buf, index, &bin_list_length); // decode end of list
 
     long rec_ttl;
-    if (ei_get_type(buf, index, &term_type, &term_size) < 0)
-	{STOPERROR("NOTTL!!")}
-    logfile("TTLTYPE:" + std::to_string(term_type) + " - " + std::to_string(term_size));
     if(ei_decode_long(buf, index, &rec_ttl) < 0)
 	{STOPERROR("Invalid ttl value")}
     logfile("TTLVALUE:" + std::to_string(rec_ttl));
+    rec.ttl = rec_ttl;
 
 
+    as_error err;
+    // Write the record to the database.
+    if (aerospike_key_put(&as, &err, NULL, &askey, &rec) != AEROSPIKE_OK) {
+    	STOPERROR(err.message)
+    }else{
+       logfile("KEYPUT OK");
+    }
+
+    for(unsigned int i = 0; i < bin_vec.size(); i++){
+	as_bytes_destroy(bin_vec[i]);
+    }
 
     OK("binary_key_put")
 
