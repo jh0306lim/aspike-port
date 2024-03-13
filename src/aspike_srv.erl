@@ -65,7 +65,7 @@
     key_get/0,
     key_get/1,
     key_get/3,
-    binary_key_get/3
+    binary_key_get/3,
     key_generation/0,
     key_generation/1,
     key_generation/3,
@@ -270,6 +270,10 @@ key_get(Key) ->
 -spec key_get(string(), string(), string()) -> {ok, [{string(), term()}]} | {error, string()}.
 key_get(Namespace, Set, Key) when is_list(Namespace), is_list(Set), is_list(Key) ->
     command({key_get, Namespace, Set, Key}).
+
+-spec binary_key_get(binary(), binary(), binary()) -> {ok, [{string(), term()}]} | {error, string()}.
+binary_key_get(Namespace, Set, Key) when is_list(Namespace), is_list(Set), is_list(Key) ->
+    command({binary_key_get, Namespace, Set, Key}).
 
 key_generation() ->
     key_generation(?DEFAULT_KEY).
