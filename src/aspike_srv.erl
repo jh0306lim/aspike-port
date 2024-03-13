@@ -1,4 +1,3 @@
-% -------------------------------------------------------------------------------
 
 -module(aspike_srv).
 
@@ -127,7 +126,6 @@ start_link() ->
 % @doc This function is used to execute all other call.
 -spec command(term()) -> term().
 command(Cmd) ->
-    io:format("CMD: ~p ~n", [Cmd]),
     gen_server:call(?MODULE, {command, Cmd}, ?DEFAULT_TIMEOUT + 10).
 
 % @doc Initialises port (c level) global variables.
@@ -378,7 +376,6 @@ init(ExtPrg) ->
     {ok, #state{ext_prg = ExtPrg, port = Port}}.
 
 handle_call({command, Msg}, {Caller, _}, State = #state{port = Port}) ->
-    io:format("HC: ~p ~n", [Msg]),
     Res = call_port(Caller, Port, Msg),
     {reply, Res, State};
 handle_call(port_info, _, State = #state{port = Port}) ->
@@ -408,7 +405,6 @@ terminate(_Reason, _State) ->
 -spec call_port(pid(), pid(), term()) -> {ok, term()} | {error, timeout}.
 call_port(Caller, Port, Msg) ->
     TbMsg = term_to_binary(Msg),
-    io:format("CP: ~p  ---- ~p   ~n", [Msg, size(TbMsg)]),
     Port ! {self(), {command, TbMsg}},
     receive
         {_Port, {data, Data}} -> Caller ! binary_to_term(Data)

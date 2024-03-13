@@ -19,6 +19,7 @@
 #include <aerospike/as_node.h>
 #include <aerospike/as_cluster.h>
 #include <aerospike/as_lookup.h>
+#include <aerospike/as_arraylist.h>
 
 // ----------------------------------------------------------------------------
 
@@ -531,14 +532,12 @@ int decode_bin_term(const char *buf, int *index, std::string& ds){
 	return -2;
     }
 
-    logfile("bin term size:" + std::to_string(term_size));
     char ns[term_size+1];
     if (ei_decode_binary(buf, index, ns, &len) < 0) {
 	return -2;
     }
     ns[len] = '\0';
     ds = std::string(ns);
-    logfile("bin term str size:" + std::to_string(ds.size()));
     
     return 0;
 }
@@ -550,7 +549,6 @@ int call_binary_key_put(const char *buf, int *index, int arity, int fd_out) {
     int term_type;
     int bin_list_length;
 
-    logfile("1");
 
     if (ei_get_type(buf, index, &term_type, &term_size) < 0 || term_type != ERL_BINARY_EXT)
     	{STOPERROR("BKP invalid namespace bytestring size")}
@@ -558,7 +556,6 @@ int call_binary_key_put(const char *buf, int *index, int arity, int fd_out) {
     if (ei_decode_binary(buf, index, ns, &len) < 0) 
         {STOPERROR("BKP invalid first argument: namespace")}
     ns[len] = '\0'; 
-    logfile("ns length:" + std::to_string(len));
     
     if (ei_get_type(buf, index, &term_type, &term_size) < 0 || term_type != ERL_BINARY_EXT)
         {STOPERROR("BKP invalid set bytestring size")}
@@ -566,7 +563,6 @@ int call_binary_key_put(const char *buf, int *index, int arity, int fd_out) {
     if (ei_decode_binary(buf, index, set, &len) < 0)
         {STOPERROR("BKP invalid second argument: namespace")}
     set[len] = '\0'; 
-    logfile("set length:" + std::to_string(len));
 
 
     if (ei_get_type(buf, index, &term_type, &term_size) < 0 || term_type != ERL_BINARY_EXT)
@@ -575,11 +571,9 @@ int call_binary_key_put(const char *buf, int *index, int arity, int fd_out) {
     if (ei_decode_binary(buf, index, key, &len) < 0)
         {STOPERROR("BKP invalid second argument: namespace")}
     key[len] = '\0'; 
-    logfile("key length:" + std::to_string(len));
     
     if (ei_decode_list_header(buf, index, &bin_list_length) < 0)
         {STOPERROR("invalid fourth argument: list")}
-    logfile("bin list length:" + std::to_string(bin_list_length));
 
     CHECK_ALL
 
@@ -598,26 +592,52 @@ int call_binary_key_put(const char *buf, int *index, int arity, int fd_out) {
             {STOPERROR("invalid tuple")}
         if (decode_bin_term(buf, index, bin_name) < 0 )
             {STOPERROR("invalid bin_name")}
-    	logfile("bin name:" + bin_name);
 	if (ei_get_type(buf, index, &term_type, &term_size) < 0)
 	     {STOPERROR("BKP invalid bin value type (should be binary or integer)")}
 
         if((term_type == ERL_BINARY_EXT) && (decode_bin_term(buf, index, bin_str_value) == 0)){
-    	    logfile("bin str value:" + bin_str_value);
 	    bin_vec.push_back(as_bytes_new(bin_str_value.size()));
 	    as_bytes * bytes_v = bin_vec.back();
 	    as_bytes_set(bytes_v, 0, (const uint8_t *)bin_str_value.c_str(), bin_str_value.size());
 	    if(!as_record_set_bytes(&rec, bin_name.c_str(), bytes_v)){
 		as_bytes_destroy(bytes_v);
 		ret_val = 1;
-    	   	logfile("record str value ok");
 	    }
  	} else if((term_type == ERL_SMALL_INTEGER_EXT) || (term_type == ERL_INTEGER_EXT)){
            if(ei_decode_long(buf, index, &bin_int_value) == 0){
-    	   	logfile("bin int value:" + std::to_string(bin_int_value));
     	        as_record_set_int64(&rec, bin_name.c_str(), bin_int_value);
            }
-        }
+        } else if(term_type == ERL_LIST_EXT){ // expecting list of integers
+           int bin_intlist_length;
+    	   if(ei_decode_list_header(buf, index, &bin_intlist_length) < 0)
+        	{STOPERROR("invalid list of ints")}
+           as_arraylist* as_list_ofints = as_arraylist_new((uint32_t)bin_intlist_length, 0);
+           for (int j = 0; j < bin_intlist_length; j++) {
+	       long i64 = 0;
+               if(ei_decode_long(buf, index, &i64) == 0){
+                   as_arraylist_append_int64(as_list_ofints, i64);
+	       }
+           }
+    	   ei_decode_list_header(buf, index, &bin_intlist_length); // read end of list
+	   ((as_val *)as_list_ofints)->type = AS_LIST;
+           if(!as_record_set_list(&rec, bin_name.c_str(), (as_list*)as_list_ofints)){
+            	as_list_destroy((as_list*)as_list_ofints);
+           }
+        } else if(term_type == ERL_STRING_EXT) { // expecting list of integers
+    	   char listints[term_size]; 
+	   if(ei_decode_string(buf, index, listints) == 0){
+		   as_arraylist* as_list_ofints = as_arraylist_new((uint32_t)term_size, 0);
+		   for (int j = 0; j < term_size; j++) {
+		       as_arraylist_append_int64(as_list_ofints, (long)(listints[j]));
+		   }
+		   ((as_val *)as_list_ofints)->type = AS_LIST;
+		   if(!as_record_set_list(&rec, bin_name.c_str(), (as_list*)as_list_ofints)){
+			as_list_destroy((as_list*)as_list_ofints);
+		   }
+	   }
+        } else {
+	   logfile("unknown type: " + std::to_string(term_type));
+	}
      
     }
     ei_decode_list_header(buf, index, &bin_list_length); // decode end of list
@@ -625,7 +645,6 @@ int call_binary_key_put(const char *buf, int *index, int arity, int fd_out) {
     long rec_ttl;
     if(ei_decode_long(buf, index, &rec_ttl) < 0)
 	{STOPERROR("Invalid ttl value")}
-    logfile("TTLVALUE:" + std::to_string(rec_ttl));
     rec.ttl = rec_ttl;
 
 
@@ -634,7 +653,7 @@ int call_binary_key_put(const char *buf, int *index, int arity, int fd_out) {
     if (aerospike_key_put(&as, &err, NULL, &askey, &rec) != AEROSPIKE_OK) {
     	STOPERROR(err.message)
     }else{
-       logfile("KEYPUT OK");
+
     }
 
     for(unsigned int i = 0; i < bin_vec.size(); i++){
