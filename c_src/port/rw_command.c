@@ -2,18 +2,22 @@
 
 #include <stdio.h>
 #include <unistd.h>
+#include <string>
 
+#define bytes_to_u16(MSB,LSB) (((unsigned int) ((unsigned char) MSB)) & 255)<<8 | (((unsigned char) LSB)&255)
 
 typedef char byte;
 
-int read_exact(byte *buf, int len, int fd);
+int read_exact(byte *buf, unsigned int len, int fd);
 int write_exact(byte *buf, int len, int fd);
 int read_cmd(byte *buf, int fd);
 int write_cmd(byte *buf, int len, int fd);
+void logfile(std::string str);
 
-int read_exact(byte *buf, int len, int fd)
+int read_exact(byte *buf, unsigned int len, int fd)
 {
-  int i, got=0;
+  int i; 
+  unsigned int got=0;
 
   do {
       if ((i = read(fd, buf+got, len-got)) <= 0){
@@ -40,11 +44,13 @@ int write_exact(byte *buf, int len, int fd)
 
 int read_cmd(byte *buf, int fd)
 {
-  int len;
+  unsigned int len;
 
   if (read_exact(buf, 2, fd) != 2)
     return(-1);
-  len = (buf[0] << 8) | buf[1];
+
+  len = bytes_to_u16(buf[0],buf[1]);
+  //len = (buf[0] << 8) | buf[1];
   return read_exact(buf, len, fd);
 }
 

@@ -1,5 +1,4 @@
-
--module(aspike_srv).
+-module(aspike_srv_worker).
 
 -behaviour(gen_server).
 
@@ -8,6 +7,7 @@
 % -------------------------------------------------------------------------------
 
 -define(LIBNAME, aspike_port).
+-define(POOLNAME, aspike).
 
 -ifndef(TEST).
 -define(TEST, true).
@@ -22,7 +22,8 @@
 
 -ifdef(TEST).
 -export([
-    start/0
+    start/0,
+    aerospike_init/1
 ]).
 -endif.
 
@@ -121,18 +122,26 @@ start() ->
 -endif.
 
 start_link() ->
-    gen_server:start_link({local, ?MODULE}, ?MODULE, utils:find_lib(?LIBNAME), []).
+    io:format("STARTING !!!! ~n", []),
+    gen_server:start_link(?MODULE, utils:find_lib(?LIBNAME), []).
 
 % @doc This function is used to execute all other call.
 -spec command(term()) -> term().
 command(Cmd) ->
-    gen_server:call(?MODULE, {command, Cmd}, ?DEFAULT_TIMEOUT + 10).
+    Pid = pooler:take_member(?POOLNAME),
+    Ret = gen_server:call(Pid, {command, Cmd}, ?DEFAULT_TIMEOUT + 10),
+    pooler:return_member(?POOLNAME, Pid, ok),
+    Ret.
 
 % @doc Initialises port (c level) global variables.
 % Is called automatically during init
 -spec aerospike_init() -> {ok, string()} | {error, string()}.
 aerospike_init() ->
     command({aerospike_init}).
+
+aerospike_init(Pid) when is_pid(Pid) ->
+    gen_server:call(Pid, {command, {aerospike_init}}, ?DEFAULT_TIMEOUT + 10).
+   
 
 -spec host_add() -> {ok, string()} | {error, string()}.
 host_add() ->
@@ -348,7 +357,10 @@ host_info(HostName, Port, Item) when is_list(HostName), is_integer(Port), is_lis
 % @doc Returns information about Erlang PORT
 -spec port_info() -> [tuple()] | undefined.
 port_info() ->
-    gen_server:call(?MODULE, port_info).
+    Pid = pooler:take_member(?POOLNAME),
+    Ret = gen_server:call(Pid, port_info),
+    pooler:return_member(?POOLNAME, Pid, ok),
+    Ret.
 
 % @doc Returns status of aspike_port
 -spec port_status() -> {ok, map()} | {error, term()}.
@@ -370,11 +382,22 @@ bar(X) ->
 
 -spec init(string()) -> {ok, state()}.
 init(ExtPrg) ->
+    io:format("WORKET starting ~p ~n", [self()]),
     process_flag(trap_exit, true),
     Port = open_port({spawn_executable, ExtPrg}, [{packet, 2}, binary, nouse_stdio]),
-    spawn(fun aerospike_init/0),
+    Pid = self(),
+    spawn(fun() -> aspike_srv_worker:aerospike_init(Pid) end),
     {ok, #state{ext_prg = ExtPrg, port = Port}}.
 
+handle_call({command, {aerospike_init}}, {Caller, _}, State = #state{port = Port}) ->
+    Res = call_port(Caller, Port, {aerospike_init}),
+    {ok, Host} = application:get_env(aspike_port, host),
+    {ok, Prt} = application:get_env(aspike_port, port),
+    AHRet = call_port(Caller, Port, {host_add, Host, Prt}),
+    {ok, User} = application:get_env(aspike_port, user),
+    {ok, Password} = application:get_env(aspike_port, psw),
+    ConnRet = call_port(Caller, Port, {connect, User, Password}),
+    {reply, {Res, AHRet, ConnRet}, State};
 handle_call({command, Msg}, {Caller, _}, State = #state{port = Port}) ->
     Res = call_port(Caller, Port, Msg),
     {reply, Res, State};
