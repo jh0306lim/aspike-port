@@ -2,6 +2,7 @@
 
 -export([
    sp_insert/8,
+   pool_insert/8,
    sp_insert/5,
    sp_insert/2,
    sp_insert/1,
@@ -9,6 +10,7 @@
    sp_read/2,
    sp_read/8,
    mp_reads/3,
+   mp_port_insert/3,
 
    rand_read/2,
    rand_read/8,
@@ -53,11 +55,56 @@ sp_insert(Namespace, Set, N, TTL, Sleep, AddP, Oks, Errs) ->
    end,
    sp_insert(Namespace, Set, N-1, TTL, Sleep, AddP, O1, E1).
 
+
+pool_insert(_, _, 0, _, _, _, Oks, Errs) -> {Oks, Errs};
+pool_insert(Namespace, Set, N, TTL, Sleep, AddP, Oks, Errs) ->
+   case N rem 10000 of
+     0 -> io:format("Pool write N: ~p ~n", [N]);
+     _ -> ok
+   end,
+   Key = integer_to_binary(N + AddP),
+   Bins = [
+      {<<"column1">>, <<"fcap">>},
+      {<<"column2">>, <<"campaign.164206.3684975">>},
+      {<<"timestamps">>, <<0,0,0,0,0,0,0,2,0,0,0,0,101,231,111,33,0,0,0,0,101,231,64,10>>}
+   ],
+   {O1, E1} = case aspike_srv_worker:binary_key_put(Namespace, Set, Key, Bins, TTL) of
+     {ok, _} -> {Oks+1, Errs};
+     _ -> {Oks, Errs+1}
+   end, 
+
+   case Sleep of
+     0 -> ok;
+     _ -> timer:sleep(rand:uniform(Sleep))
+   end,
+   pool_insert(Namespace, Set, N-1, TTL, Sleep, AddP, O1, E1).
+
 mp_insert(NProc, N, Sleep) ->
    lists:map(fun(E) -> 
      spawn(fun() ->
+   	T1 = erlang:system_time(microsecond),
 	Ret = sp_insert(<<"rtb-gateway">>, <<"nif_perf_set">>, N, 3600, Sleep, 1_000_000_000_000 * E, 0, 0),
-	io:format("Insert Process ~p ret: ~p ~n", [E, Ret])
+        RR = (erlang:system_time(microsecond) - T1) div N,
+	io:format("Insert Process ~p ret: ~p rate: ~p ~n", [E, Ret, RR])
+     end)
+   end, lists:seq(1, NProc)).
+
+mp_port_insert(NProc, N, Sleep) ->
+   pooler:start(),
+   pooler:new_pool(
+        #{
+          name => aspike,
+          init_count => NProc,
+          max_count => NProc,
+          start_mfa => {aspike_srv_worker, start_link, []}
+        }
+   ),
+   lists:map(fun(E) -> 
+     spawn(fun() ->
+   	T1 = erlang:system_time(microsecond),
+	Ret = pool_insert(<<"rtb-gateway">>, <<"nif_perf_set">>, N, 3600, Sleep, 1_000_000_000_000 * E, 0, 0),
+        RR = (erlang:system_time(microsecond) - T1) div N,
+	io:format("Insert Process ~p ret: ~p rate: ~p ~n", [E, Ret, RR])
      end)
    end, lists:seq(1, NProc)).
 
