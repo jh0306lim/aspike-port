@@ -137,6 +137,7 @@ int call_port_status(const char *buf, int *index, int arity, int fd_out);
 int call_key_exists(const char *buf, int *index, int arity, int fd_out);
 int call_key_inc(const char *buf, int *index, int arity, int fd_out);
 int call_key_get(const char *buf, int *index, int arity, int fd_out);
+int call_binary_key_get(const char *buf, int *index, int arity, int fd_out);
 int call_key_generation(const char *buf, int *index, int arity, int fd_out);
 int call_key_put(const char *buf, int *index, int arity, int fd_out);
 int call_binary_key_put(const char *buf, int *index, int arity, int fd_out);
@@ -234,6 +235,9 @@ int function_call(const char *buf, int *index, int arity, int fd_out) {
     }
     if (check_name(fname, "key_get", arity, 4)) {
         return call_key_get(buf, index, arity, fd_out);
+    }
+    if (check_name(fname, "binary_key_get", arity, 4)) {
+        return call_binary_key_get(buf, index, arity, fd_out);
     }
     if (check_name(fname, "key_generation", arity, 4)) {
         return call_key_generation(buf, index, arity, fd_out);
@@ -887,6 +891,24 @@ int call_key_exists(const char *buf, int *index, int arity, int fd_out) {
 static void dump_bin(ei_x_buff *p_res_buf, const as_bin* p_bin) {
     char* val_as_str = NULL;
     ei_x_encode_tuple_header(p_res_buf, 2);
+    //ei_x_encode_string(p_res_buf, as_bin_get_name(p_bin));
+    char* name = as_bin_get_name(p_bin);
+    auto namelen = strlen(name);
+    ei_x_encode_binary(p_res_buf, name, namelen);
+    switch (as_bin_get_type(p_bin)){
+        case AS_INTEGER:
+            ei_x_encode_long(p_res_buf, as_bin_get_value(p_bin)->integer.value);
+            break;
+        default:
+            val_as_str = as_val_tostring(as_bin_get_value(p_bin));
+            ei_x_encode_string(p_res_buf, val_as_str);
+            free(val_as_str);
+    }
+}
+
+static void dump_binary_bin(ei_x_buff *p_res_buf, const as_bin* p_bin) {
+    char* val_as_str = NULL;
+    ei_x_encode_tuple_header(p_res_buf, 2);
     ei_x_encode_string(p_res_buf, as_bin_get_name(p_bin));
     switch (as_bin_get_type(p_bin)){
         case AS_INTEGER:
@@ -897,6 +919,34 @@ static void dump_bin(ei_x_buff *p_res_buf, const as_bin* p_bin) {
             ei_x_encode_string(p_res_buf, val_as_str);
             free(val_as_str);
     }
+}
+
+static int binary_dump_records(ei_x_buff *p_res_buf, const as_record *p_rec) {
+    int res = 1;
+    if (p_rec == NULL) {
+        ERRORP("NULL p_rec - internal error")
+        return res;
+    }
+    if (p_rec->key.valuep) {
+	char* key_val_as_str = as_val_tostring(p_rec->key.valuep);
+        OKP(key_val_as_str)
+	free(key_val_as_str);
+        return res;
+    }
+
+    as_record_iterator it;
+    as_record_iterator_init(&it, p_rec);
+    OK0P
+    
+    uint16_t num_bins = as_record_numbins(p_rec);
+    ei_x_encode_list_header(p_res_buf, num_bins);
+    while (as_record_iterator_has_next(&it)) {
+    	dump_binary_bin(p_res_buf, as_record_iterator_next(&it));
+    }
+    ei_x_encode_empty_list(p_res_buf);
+    as_record_iterator_destroy(&it);
+
+    return res;
 }
 
 static int dump_records(ei_x_buff *p_res_buf, const as_record *p_rec) {
@@ -928,6 +978,66 @@ static int dump_records(ei_x_buff *p_res_buf, const as_record *p_rec) {
 	as_record_iterator_destroy(&it);
 
     return res;
+}
+
+int call_binary_key_get(const char *buf, int *index, int arity, int fd_out) {
+    PRE
+
+    long len;
+    int term_size;
+    int term_type;
+    as_record* p_rec = NULL;    
+    logfile("CBKG1");
+
+
+    if (ei_get_type(buf, index, &term_type, &term_size) < 0 || term_type != ERL_BINARY_EXT)
+    	{STOPERROR("BKG invalid namespace bytestring size")}
+    char ns[term_size + 1];
+    if (ei_decode_binary(buf, index, ns, &len) < 0) 
+        {STOPERROR("BKG invalid first argument: namespace")}
+    ns[len] = '\0'; 
+    logfile("CBKG2");
+    
+    if (ei_get_type(buf, index, &term_type, &term_size) < 0 || term_type != ERL_BINARY_EXT)
+        {STOPERROR("BKG invalid set bytestring size")}
+    char set[term_size + 1];
+    if (ei_decode_binary(buf, index, set, &len) < 0)
+        {STOPERROR("BKG invalid second argument: namespace")}
+    set[len] = '\0'; 
+    logfile("CBKG3");
+
+
+    if (ei_get_type(buf, index, &term_type, &term_size) < 0 || term_type != ERL_BINARY_EXT)
+        {STOPERROR("BKG invalid key bytestring size")}
+    char key[term_size + 1];
+    if (ei_decode_binary(buf, index, key, &len) < 0)
+        {STOPERROR("BKG invalid second argument: namespace")}
+    key[len] = '\0'; 
+    logfile("CBKG4");
+
+    CHECK_ALL
+
+    as_key askey;
+    as_key_init_str(&askey, ns, set, key);
+    as_error err;
+    
+    logfile("CBKG5");
+    // Get the record from the database.
+    if (aerospike_key_get(&as, &err, NULL, &askey, &p_rec) != AEROSPIKE_OK) {
+       STOPERROR(err.message)
+       logfile("CBKG6");
+    }
+
+    logfile("CBKG7");
+    res = binary_dump_records(&res_buf, p_rec);
+
+    logfile("CBKG8");
+    if (p_rec != NULL) {
+        as_record_destroy(p_rec);
+    }
+
+    logfile("CBKG9");
+    POST
 }
 
 int call_key_get(const char *buf, int *index, int arity, int fd_out) {
