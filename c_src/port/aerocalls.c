@@ -38,6 +38,10 @@ const char DEFAULT_SET[] = "eg-set";
 const char DEFAULT_KEY_STR[] = "eg-key";
 const uint32_t DEFAULT_NUM_KEYS = 20;
 
+typedef struct {
+    ei_x_buff* env;
+    uint32_t count;
+} conversion_data;
 // ----------------------------------------------------------------------------
 
 #define OK0\
@@ -891,10 +895,7 @@ int call_key_exists(const char *buf, int *index, int arity, int fd_out) {
 static void dump_bin(ei_x_buff *p_res_buf, const as_bin* p_bin) {
     char* val_as_str = NULL;
     ei_x_encode_tuple_header(p_res_buf, 2);
-    //ei_x_encode_string(p_res_buf, as_bin_get_name(p_bin));
-    char* name = as_bin_get_name(p_bin);
-    auto namelen = strlen(name);
-    ei_x_encode_binary(p_res_buf, name, namelen);
+    ei_x_encode_string(p_res_buf, as_bin_get_name(p_bin));
     switch (as_bin_get_type(p_bin)){
         case AS_INTEGER:
             ei_x_encode_long(p_res_buf, as_bin_get_value(p_bin)->integer.value);
@@ -906,14 +907,45 @@ static void dump_bin(ei_x_buff *p_res_buf, const as_bin* p_bin) {
     }
 }
 
+static bool list_to_intlist_each(as_val *val, void *udata){
+    if (!val) {
+        return false;
+    }
+
+    conversion_data *convd = (conversion_data *)udata;
+    ei_x_encode_long(convd->env,  as_integer_get((as_integer*)val) );
+
+    convd->count++;
+    return true;
+}
+
 static void dump_binary_bin(ei_x_buff *p_res_buf, const as_bin* p_bin) {
     char* val_as_str = NULL;
     ei_x_encode_tuple_header(p_res_buf, 2);
-    ei_x_encode_string(p_res_buf, as_bin_get_name(p_bin));
+    char* name = as_bin_get_name(p_bin);
+    auto namelen = strlen(name);
+    ei_x_encode_binary(p_res_buf, name, namelen);
     switch (as_bin_get_type(p_bin)){
         case AS_INTEGER:
             ei_x_encode_long(p_res_buf, as_bin_get_value(p_bin)->integer.value);
             break;
+        case AS_STRING:
+        case AS_BYTES: {
+            as_bytes asbval = as_bin_get_value(p_bin)->bytes;
+            uint8_t * bin_as_str = as_bytes_get(&asbval);
+            auto len = asbval.size;
+    	    ei_x_encode_binary(p_res_buf, bin_as_str, len);
+        }break;
+        case AS_LIST: {
+            as_bin_value *val = as_bin_get_value(p_bin);
+	    as_list *int_list = &val->list;
+            auto len = as_list_size(int_list);
+    	    ei_x_encode_list_header(p_res_buf, len);
+	    conversion_data convd = {
+            	.env = p_res_buf, .count = 0};
+            as_list_foreach((as_list *)(&val->list), list_to_intlist_each, &convd);
+    	    ei_x_encode_empty_list(p_res_buf);
+        }break;
         default:
             val_as_str = as_val_tostring(as_bin_get_value(p_bin));
             ei_x_encode_string(p_res_buf, val_as_str);
