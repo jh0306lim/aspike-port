@@ -20,11 +20,11 @@
 
 % single process insert
 sp_insert(N) ->
-   sp_insert(<<"rtb-gateway">>, <<"nif_perf_set">>, N, 3600, 10).
+   sp_insert(<<"global-store">>, <<"rtb-gateway-fcap-users">>, N, 3600, 10).
 
 sp_insert(N, Sleep) ->
    T1 = erlang:system_time(microsecond),
-   sp_insert(<<"rtb-gateway">>, <<"nif_perf_set">>, N, 3600, Sleep),
+   sp_insert(<<"global-store">>, <<"rtb-gateway-fcap-users">>, N, 3600, Sleep),
    T = erlang:system_time(microsecond) - T1,
    Avg = (T - (Sleep * 1000)*N)/N,
    {T, Avg}.
@@ -46,7 +46,9 @@ sp_insert(Namespace, Set, N, TTL, Sleep, AddP, Oks, Errs) ->
    ],
    {O1, E1} = case aspike_nif:binary_put(Namespace, Set, Key, Bins, TTL) of
      {ok, _} -> {Oks+1, Errs};
-     _ -> {Oks, Errs+1}
+     EE ->
+	io:format("Error ~p ~n", [EE]), 
+	{Oks, Errs+1}
    end, 
 
    case Sleep of
@@ -83,7 +85,7 @@ mp_insert(NProc, N, Sleep) ->
    lists:map(fun(E) -> 
      spawn(fun() ->
    	T1 = erlang:system_time(microsecond),
-	Ret = sp_insert(<<"rtb-gateway">>, <<"nif_perf_set">>, N, 3600, Sleep, 1_000_000_000_000 * E, 0, 0),
+	Ret = sp_insert(<<"global-store">>, <<"rtb-gateway-fcap-users">>, N, 3600, Sleep, 1_000_000_000_000 * E, 0, 0),
         RR = (erlang:system_time(microsecond) - T1) div N,
 	io:format("Insert Process ~p ret: ~p rate: ~p ~n", [E, Ret, RR])
      end)
@@ -102,7 +104,7 @@ mp_port_insert(NProc, N, Sleep) ->
    lists:map(fun(E) -> 
      spawn(fun() ->
    	T1 = erlang:system_time(microsecond),
-	Ret = pool_insert(<<"rtb-gateway">>, <<"nif_perf_set">>, N, 3600, Sleep, 1_000_000_000_000 * E, 0, 0),
+	Ret = pool_insert(<<"global-store">>, <<"rtb-gateway-fcap-users">>, N, 3600, Sleep, 1_000_000_000_000 * E, 0, 0),
         RR = (erlang:system_time(microsecond) - T1) div N,
 	io:format("Insert Process ~p ret: ~p rate: ~p ~n", [E, Ret, RR])
      end)
@@ -111,14 +113,14 @@ mp_port_insert(NProc, N, Sleep) ->
 mp_reads(NProc, N, Sleep) ->
    lists:map(fun(E) -> 
      spawn(fun() ->
-	Ret = sp_read(<<"rtb-gateway">>, <<"nif_perf_set">>, N, Sleep, 1_000_000_000_000 * E, 0, 0, 0),
+	Ret = sp_read(<<"global-store">>, <<"rtb-gateway-fcap-users">>, N, Sleep, 1_000_000_000_000 * E, 0, 0, 0),
 	io:format("Read Process ~p ret: ~p ~n", [E, Ret])
      end)
    end, lists:seq(1, NProc)).
 
 sp_read(N, Sleep) ->
    T1 = erlang:system_time(microsecond),
-   Ret = sp_read(<<"rtb-gateway">>, <<"nif_perf_set">>, N, Sleep, 1_000_000_000_000, 0, 0, 0),
+   Ret = sp_read(<<"global-store">>, <<"rtb-gateway-fcap-users">>, N, Sleep, 1_000_000_000_000, 0, 0, 0),
    T = erlang:system_time(microsecond) - T1,
    Avg = (T - (Sleep * 1000)*N)/N,
    {Ret, {T, Avg}}.
@@ -151,14 +153,14 @@ sp_read(Namespace, Set, N, Sleep, AddP, Oks, Nfs, Errs) ->
 mp_rand_reads(NProc, N, Sleep) ->
    lists:map(fun(E) -> 
      spawn(fun() ->
-	Ret = rand_read(<<"rtb-gateway">>, <<"nif_perf_set">>, N, Sleep, 1_000_000_000_000, 0, 0, 0),
+	Ret = rand_read(<<"global-store">>, <<"rtb-gateway-fcap-users">>, N, Sleep, 1_000_000_000_000, 0, 0, 0),
 	io:format("Process ~p ret: ~p ~n", [E, Ret])
      end)
    end, lists:seq(1, NProc)).
 
 rand_read(N, Sleep) ->
    T1 = erlang:system_time(microsecond),
-   Ret = sp_read(<<"rtb-gateway">>, <<"nif_perf_set">>, N, Sleep, 1_000_000_000_000, 0, 0, 0),
+   Ret = sp_read(<<"global-store">>, <<"rtb-gateway-fcap-users">>, N, Sleep, 1_000_000_000_000, 0, 0, 0),
    T = erlang:system_time(microsecond) - T1,
    Avg = (T - (Sleep * 1000)*N)/N,
    {Ret, {T, Avg}}.
@@ -199,7 +201,7 @@ check_ret(Ret) ->
 infinite_test(NProc, Ttl, WSleep, _RSleep) ->
    lists:map(fun(E) -> 
      spawn(fun() ->
-	Ret = sp_insert(<<"rtb-gateway">>, <<"nif_perf_set">>, 999_999_999_999, Ttl, WSleep, 1_000_000_000_000 * E, 0, 0),
+	Ret = sp_insert(<<"global-store">>, <<"rtb-gateway-fcap-users">>, 999_999_999_999, Ttl, WSleep, 1_000_000_000_000 * E, 0, 0),
 	io:format("Insert Process ~p ret: ~p ~n", [E, Ret])
      end)
    end, lists:seq(1, NProc)).
