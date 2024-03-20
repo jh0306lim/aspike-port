@@ -271,7 +271,7 @@ key_get(Namespace, Set, Key) when is_list(Namespace), is_list(Set), is_list(Key)
     command({key_get, Namespace, Set, Key}).
 
 -spec binary_key_get(binary(), binary(), binary()) -> {ok, [{string(), term()}]} | {error, string()}.
-binary_key_get(Namespace, Set, Key) when is_list(Namespace), is_list(Set), is_list(Key) ->
+binary_key_get(Namespace, Set, Key) when is_binary(Namespace), is_binary(Set), is_binary(Key) ->
     command({binary_key_get, Namespace, Set, Key}).
 
 key_generation() ->
