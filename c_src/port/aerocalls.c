@@ -201,7 +201,7 @@ int note(const char *msg, int fd_out) {
 // }
 
 int is_function_call(const char *buf, int *index, int *arity) {
-    int res = ei_decode_tuple_header(buf, index, arity) == 0 && arity > 0;
+    int res = ei_decode_tuple_header(buf, index, arity) == 0 && *arity > 0;
     return res;
 }
 
