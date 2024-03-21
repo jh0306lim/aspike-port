@@ -15,7 +15,10 @@
    rand_read/2,
    rand_read/8,
    mp_rand_reads/3,
-   infinite_test/4
+   infinite_test/4,
+
+   test_insertion/5,
+   test_reading/3
 ]).
 
 % single process insert
@@ -206,3 +209,52 @@ infinite_test(NProc, Ttl, WSleep, _RSleep) ->
      end)
    end, lists:seq(1, NProc)).
 
+test_insertion(0, _, _, Oks, Errs) -> {Oks, Errs};
+test_insertion(N, Sleep, PrevLatency, Oks, Errs) ->
+   Key = integer_to_binary(N),
+   T1 = erlang:system_time(microsecond),
+   Bins = [
+      {<<"column1">>, <<"fcap">>},
+      {<<"column2">>, integer_to_binary(T1)},
+      {<<"column3">>, integer_to_binary(PrevLatency)},
+      {<<"timestamps">>, <<0,0,0,0,0,0,0,2,0,0,0,0,101,231,111,33,0,0,0,0,101,231,64,10>>}
+   ],
+   {O1, E1} = case aspike_nif:binary_put(<<"global-store">>, <<"rtb-gateway-fcap-users">>, Key, Bins, 600) of
+     {ok, _} -> {Oks+1, Errs};
+     EE ->
+	io:format("Error ~p ~n", [EE]), 
+	{Oks, Errs+1}
+   end, 
+   Latency = erlang:system_time(microsecond) - T1,
+   case Sleep of
+     0 -> ok;
+     _ -> timer:sleep(Sleep)
+   end,
+   test_insertion(N - 1, Sleep, Latency, O1, E1).
+
+test_reading(0, _, XDRLat) -> XDRLat;
+test_reading(N, Sleep, XDRLat) ->
+   Key = integer_to_binary(N),
+   T1 = erlang:system_time(microsecond),
+   {Status, XDRLatRet} = case aspike_nif:binary_get(<<"global-store">>, <<"rtb-gateway-fcap-users">>, Key) of
+      {ok, Ret} ->
+	  TW1 = binary_to_integer(proplists:get_value(<<"column2">>, Ret, <<"0">>)),
+          L1  = binary_to_integer(proplists:get_value(<<"column3">>, Ret, <<"0">>)),
+          XDRLat1 = T1 - TW1 - L1,
+          io:format("Key: ~p XDRLat: ~p ~n", [Key, XDRLat1]),
+          {ok, XDRLat1};
+      {error, ERet} ->
+	  case string:str(ERet, "AEROSPIKE_ERR_RECORD_NOT_FOUND") of
+	    0 -> {err, XDRLat};
+            _ -> {nf, XDRLat}
+          end
+   end,
+   case Sleep of
+     0 -> ok;
+     _ -> timer:sleep(rand:uniform(Sleep))
+   end,
+   case Status of
+	nf -> test_reading(N, Sleep, XDRLat);
+        _  -> test_reading(N -1 , Sleep, (XDRLatRet + XDRLat) div 2)
+   end.
+   
