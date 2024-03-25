@@ -15,16 +15,20 @@
    rand_read/2,
    rand_read/8,
    mp_rand_reads/3,
-   infinite_test/4
+   infinite_test/4,
+
+   test_insertion/5,
+   test_reading/3,
+   dump_stats/0
 ]).
 
 % single process insert
 sp_insert(N) ->
-   sp_insert(<<"rtb-gateway">>, <<"nif_perf_set">>, N, 3600, 10).
+   sp_insert(<<"global-store">>, <<"rtb-gateway-fcap-users">>, N, 3600, 10).
 
 sp_insert(N, Sleep) ->
    T1 = erlang:system_time(microsecond),
-   sp_insert(<<"rtb-gateway">>, <<"nif_perf_set">>, N, 3600, Sleep),
+   sp_insert(<<"global-store">>, <<"rtb-gateway-fcap-users">>, N, 3600, Sleep),
    T = erlang:system_time(microsecond) - T1,
    Avg = (T - (Sleep * 1000)*N)/N,
    {T, Avg}.
@@ -44,10 +48,18 @@ sp_insert(Namespace, Set, N, TTL, Sleep, AddP, Oks, Errs) ->
       {<<"column2">>, <<"campaign.164206.3684975">>},
       {<<"timestamps">>, <<0,0,0,0,0,0,0,2,0,0,0,0,101,231,111,33,0,0,0,0,101,231,64,10>>}
    ],
+   T1 = erlang:system_time(microsecond),
    {O1, E1} = case aspike_nif:binary_put(Namespace, Set, Key, Bins, TTL) of
      {ok, _} -> {Oks+1, Errs};
-     _ -> {Oks, Errs+1}
+     EE ->
+	io:format("Error ~p ~n", [EE]), 
+	{Oks, Errs+1}
    end, 
+   T = erlang:system_time(microsecond) - T1,
+   case erlang:get(insert_stats) of
+      undefined -> erlang:put(insert_stats, [T]);
+      ISList -> erlang:put(insert_stats, [T | ISList])
+   end,
 
    case Sleep of
      0 -> ok;
@@ -83,7 +95,7 @@ mp_insert(NProc, N, Sleep) ->
    lists:map(fun(E) -> 
      spawn(fun() ->
    	T1 = erlang:system_time(microsecond),
-	Ret = sp_insert(<<"rtb-gateway">>, <<"nif_perf_set">>, N, 3600, Sleep, 1_000_000_000_000 * E, 0, 0),
+	Ret = sp_insert(<<"global-store">>, <<"rtb-gateway-fcap-users">>, N, 3600, Sleep, 1_000_000_000_000 * E, 0, 0),
         RR = (erlang:system_time(microsecond) - T1) div N,
 	io:format("Insert Process ~p ret: ~p rate: ~p ~n", [E, Ret, RR])
      end)
@@ -102,7 +114,7 @@ mp_port_insert(NProc, N, Sleep) ->
    lists:map(fun(E) -> 
      spawn(fun() ->
    	T1 = erlang:system_time(microsecond),
-	Ret = pool_insert(<<"rtb-gateway">>, <<"nif_perf_set">>, N, 3600, Sleep, 1_000_000_000_000 * E, 0, 0),
+	Ret = pool_insert(<<"global-store">>, <<"rtb-gateway-fcap-users">>, N, 3600, Sleep, 1_000_000_000_000 * E, 0, 0),
         RR = (erlang:system_time(microsecond) - T1) div N,
 	io:format("Insert Process ~p ret: ~p rate: ~p ~n", [E, Ret, RR])
      end)
@@ -111,14 +123,14 @@ mp_port_insert(NProc, N, Sleep) ->
 mp_reads(NProc, N, Sleep) ->
    lists:map(fun(E) -> 
      spawn(fun() ->
-	Ret = sp_read(<<"rtb-gateway">>, <<"nif_perf_set">>, N, Sleep, 1_000_000_000_000 * E, 0, 0, 0),
+	Ret = sp_read(<<"global-store">>, <<"rtb-gateway-fcap-users">>, N, Sleep, 1_000_000_000_000 * E, 0, 0, 0),
 	io:format("Read Process ~p ret: ~p ~n", [E, Ret])
      end)
    end, lists:seq(1, NProc)).
 
 sp_read(N, Sleep) ->
    T1 = erlang:system_time(microsecond),
-   Ret = sp_read(<<"rtb-gateway">>, <<"nif_perf_set">>, N, Sleep, 1_000_000_000_000, 0, 0, 0),
+   Ret = sp_read(<<"global-store">>, <<"rtb-gateway-fcap-users">>, N, Sleep, 1_000_000_000_000, 0, 0, 0),
    T = erlang:system_time(microsecond) - T1,
    Avg = (T - (Sleep * 1000)*N)/N,
    {Ret, {T, Avg}}.
@@ -129,6 +141,7 @@ sp_read(Namespace, Set, N, Sleep, AddP, Oks, Nfs, Errs) ->
      _ -> ok
    end,
    Key = integer_to_binary(N + AddP),
+   T1 = erlang:system_time(microsecond),
    {Oks1, Nfs1, Errs1} = case aspike_nif:binary_get(Namespace, Set, Key) of
       {ok, Ret} ->
 	  case check_ret(Ret) of
@@ -141,6 +154,11 @@ sp_read(Namespace, Set, N, Sleep, AddP, Oks, Nfs, Errs) ->
             _ -> {Oks, Nfs+1, Errs}
           end
    end,
+   T = erlang:system_time(microsecond) - T1,
+   case erlang:get(insert_stats) of
+      undefined -> erlang:put(read_stats, [T]);
+      ISList -> erlang:put(read_stats, [T | ISList])
+   end,
    case Sleep of
      0 -> ok;
      _ -> timer:sleep(rand:uniform(Sleep))
@@ -151,14 +169,14 @@ sp_read(Namespace, Set, N, Sleep, AddP, Oks, Nfs, Errs) ->
 mp_rand_reads(NProc, N, Sleep) ->
    lists:map(fun(E) -> 
      spawn(fun() ->
-	Ret = rand_read(<<"rtb-gateway">>, <<"nif_perf_set">>, N, Sleep, 1_000_000_000_000, 0, 0, 0),
+	Ret = rand_read(<<"global-store">>, <<"rtb-gateway-fcap-users">>, N, Sleep, 1_000_000_000_000, 0, 0, 0),
 	io:format("Process ~p ret: ~p ~n", [E, Ret])
      end)
    end, lists:seq(1, NProc)).
 
 rand_read(N, Sleep) ->
    T1 = erlang:system_time(microsecond),
-   Ret = sp_read(<<"rtb-gateway">>, <<"nif_perf_set">>, N, Sleep, 1_000_000_000_000, 0, 0, 0),
+   Ret = sp_read(<<"global-store">>, <<"rtb-gateway-fcap-users">>, N, Sleep, 1_000_000_000_000, 0, 0, 0),
    T = erlang:system_time(microsecond) - T1,
    Avg = (T - (Sleep * 1000)*N)/N,
    {Ret, {T, Avg}}.
@@ -199,8 +217,69 @@ check_ret(Ret) ->
 infinite_test(NProc, Ttl, WSleep, _RSleep) ->
    lists:map(fun(E) -> 
      spawn(fun() ->
-	Ret = sp_insert(<<"rtb-gateway">>, <<"nif_perf_set">>, 999_999_999_999, Ttl, WSleep, 1_000_000_000_000 * E, 0, 0),
+	Ret = sp_insert(<<"global-store">>, <<"rtb-gateway-fcap-users">>, 999_999_999_999, Ttl, WSleep, 1_000_000_000_000 * E, 0, 0),
 	io:format("Insert Process ~p ret: ~p ~n", [E, Ret])
      end)
    end, lists:seq(1, NProc)).
 
+test_insertion(0, _, _, Oks, Errs) -> {Oks, Errs};
+test_insertion(N, Sleep, PrevLatency, Oks, Errs) ->
+   Key = integer_to_binary(N),
+   T1 = erlang:system_time(microsecond),
+   Bins = [
+      {<<"column1">>, <<"fcap">>},
+      {<<"column2">>, integer_to_binary(T1)},
+      {<<"column3">>, integer_to_binary(PrevLatency)},
+      {<<"timestamps">>, <<0,0,0,0,0,0,0,2,0,0,0,0,101,231,111,33,0,0,0,0,101,231,64,10>>}
+   ],
+   {O1, E1} = case aspike_nif:binary_put(<<"global-store">>, <<"rtb-gateway-fcap-users">>, Key, Bins, 600) of
+     {ok, _} -> {Oks+1, Errs};
+     EE ->
+	io:format("Error ~p ~n", [EE]), 
+	{Oks, Errs+1}
+   end, 
+   Latency = erlang:system_time(microsecond) - T1,
+   case Sleep of
+     0 -> ok;
+     _ -> timer:sleep(Sleep)
+   end,
+   test_insertion(N - 1, Sleep, Latency, O1, E1).
+
+test_reading(0, _, XDRLat) -> XDRLat;
+test_reading(N, Sleep, XDRLat) ->
+   Key = integer_to_binary(N),
+   T1 = erlang:system_time(microsecond),
+   {Status, XDRLatRet} = case aspike_nif:binary_get(<<"global-store">>, <<"rtb-gateway-fcap-users">>, Key) of
+      {ok, Ret} ->
+	  TW1 = binary_to_integer(proplists:get_value(<<"column2">>, Ret, <<"0">>)),
+          L1  = binary_to_integer(proplists:get_value(<<"column3">>, Ret, <<"0">>)),
+          XDRLat1 = T1 - TW1 - L1,
+          io:format("Key: ~p XDRLat: ~p ~n", [Key, XDRLat1]),
+          {ok, XDRLat1};
+      {error, ERet} ->
+	  case string:str(ERet, "AEROSPIKE_ERR_RECORD_NOT_FOUND") of
+	    0 -> {err, XDRLat};
+            _ -> {nf, XDRLat}
+          end
+   end,
+   case Sleep of
+     0 -> ok;
+     _ -> timer:sleep(rand:uniform(Sleep))
+   end,
+   case Status of
+	nf -> test_reading(N, Sleep, XDRLat);
+        _  -> test_reading(N -1 , Sleep, (XDRLatRet + XDRLat) div 2)
+   end.
+  
+dump_stats() -> 
+   Istat = erlang:get(insert_stats),
+   Rstat = erlang:get(read_stats),
+   lists:foreach(fun(E) ->
+	file:write_file("/tmp/insert_stats.txt", io_lib:fwrite("~p~n", [E]), [append]) 
+   end, Istat),
+   lists:foreach(fun(E) ->
+	file:write_file("/tmp/read_stats.txt", io_lib:fwrite("~p~n", [E]), [append]) 
+   end, Rstat),
+   erlang:put(read_stats, []),
+   erlang:put(insert_stats, []),
+   ok.
