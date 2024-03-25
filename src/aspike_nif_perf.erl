@@ -18,7 +18,8 @@
    infinite_test/4,
 
    test_insertion/5,
-   test_reading/3
+   test_reading/3,
+   dump_stats/0
 ]).
 
 % single process insert
@@ -47,12 +48,18 @@ sp_insert(Namespace, Set, N, TTL, Sleep, AddP, Oks, Errs) ->
       {<<"column2">>, <<"campaign.164206.3684975">>},
       {<<"timestamps">>, <<0,0,0,0,0,0,0,2,0,0,0,0,101,231,111,33,0,0,0,0,101,231,64,10>>}
    ],
+   T1 = erlang:system_time(microsecond),
    {O1, E1} = case aspike_nif:binary_put(Namespace, Set, Key, Bins, TTL) of
      {ok, _} -> {Oks+1, Errs};
      EE ->
 	io:format("Error ~p ~n", [EE]), 
 	{Oks, Errs+1}
    end, 
+   T = erlang:system_time(microsecond) - T1,
+   case erlang:get(insert_stats) of
+      undefined -> erlang:put(insert_stats, [T]);
+      ISList -> erlang:put(insert_stats, [T | ISList])
+   end,
 
    case Sleep of
      0 -> ok;
@@ -134,6 +141,7 @@ sp_read(Namespace, Set, N, Sleep, AddP, Oks, Nfs, Errs) ->
      _ -> ok
    end,
    Key = integer_to_binary(N + AddP),
+   T1 = erlang:system_time(microsecond),
    {Oks1, Nfs1, Errs1} = case aspike_nif:binary_get(Namespace, Set, Key) of
       {ok, Ret} ->
 	  case check_ret(Ret) of
@@ -145,6 +153,11 @@ sp_read(Namespace, Set, N, Sleep, AddP, Oks, Nfs, Errs) ->
 	    0 -> {Oks, Nfs, Errs+1};
             _ -> {Oks, Nfs+1, Errs}
           end
+   end,
+   T = erlang:system_time(microsecond) - T1,
+   case erlang:get(insert_stats) of
+      undefined -> erlang:put(read_stats, [T]);
+      ISList -> erlang:put(read_stats, [T | ISList])
    end,
    case Sleep of
      0 -> ok;
@@ -257,4 +270,16 @@ test_reading(N, Sleep, XDRLat) ->
 	nf -> test_reading(N, Sleep, XDRLat);
         _  -> test_reading(N -1 , Sleep, (XDRLatRet + XDRLat) div 2)
    end.
-   
+  
+dump_stats() -> 
+   Istat = erlang:get(insert_stats),
+   Rstat = erlang:get(read_stats),
+   lists:foreach(fun(E) ->
+	file:write_file("/tmp/insert_stats.txt", io_lib:fwrite("~p~n", [E]), [append]) 
+   end, Istat),
+   lists:foreach(fun(E) ->
+	file:write_file("/tmp/read_stats.txt", io_lib:fwrite("~p~n", [E]), [append]) 
+   end, Rstat),
+   erlang:put(read_stats, []),
+   erlang:put(insert_stats, []),
+   ok.
