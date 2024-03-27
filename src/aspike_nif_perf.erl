@@ -155,7 +155,7 @@ sp_read(Namespace, Set, N, Sleep, AddP, Oks, Nfs, Errs) ->
           end
    end,
    T = erlang:system_time(microsecond) - T1,
-   case erlang:get(insert_stats) of
+   case erlang:get(read_stats) of
       undefined -> erlang:put(read_stats, [T]);
       ISList -> erlang:put(read_stats, [T | ISList])
    end,
