@@ -1,4 +1,19 @@
-# aspike-port
+### buld
+
+you are need aerospike client installed on your machine, something like this (for Ubuntu/Debian):
+```bash
+wget https://download.aerospike.com/artifacts/aerospike-client-c/6.5.1/aerospike-client-c-libev_6.5.1_debian11_x86_64.tgz
+tar xvf aerospike-client-c-libev_6.5.1_debian11_x86_64.tgz
+cd aerospike-client-c-libev_6.5.1_debian11_x86_64
+dpkg -i aerospike-client-c-libev-devel_6.5.1-debian11_amd64.deb aerospike-client-c-libev_6.5.1-debian11_amd64.deb
+```
+after just run rebar3:
+
+```bash
+./rebar3 compile
+```
+
+### run perf tests
 to start aspike client run these commands in erlang shell
 
 ```erlang
@@ -10,6 +25,8 @@ aspike_nif:as_init().
 aspike_nif:host_add().
 aspike_nif:connect().
 ```
+
+#### single process tests
 to run single writing process: 
 ```erlang
 aspike_nif_perf:sp_insert(<<"global-store">>, <<"rtb-gateway-fcap-users">>, 1_000_000, 3600, 0, 1_000_000_000_000, 0, 0).
@@ -28,3 +45,13 @@ To get raw stats:
 aspike_nif_perf:dump_stats().
 ```
 it will produce 2 files: /tmp/read_stats.txt and /tmp/insert_stats.txt
+
+#### multi-process tests
+
+```erlang
+aspike_nif_perf:mp_insert(10, 1_000_000, 0).
+aspike_nif_perf:mp_reads(20, 1_000_000, 0).
+```
+
+it will run 10 concurrent insert processes, each will insert 1000000 keys, with 0ms delay
+and 20 concurrent read processes, each will read 1000000 keys with 0ms delay
