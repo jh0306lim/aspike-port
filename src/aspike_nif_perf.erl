@@ -272,14 +272,27 @@ test_reading(N, Sleep, XDRLat) ->
    end.
   
 dump_stats() -> 
-   Istat = erlang:get(insert_stats),
-   Rstat = erlang:get(read_stats),
+   Istat = case erlang:get(insert_stats) of
+	IsL when is_list(IsL) -> IsL;
+	_ -> []
+   end,
+   Rstat = case erlang:get(read_stats) of
+	RsL when is_list(RsL) -> RsL;
+	_ -> []
+   end,
+   {ok, IFile} = file:open("/tmp/insert_stats.txt", [write]),
    lists:foreach(fun(E) ->
-	file:write_file("/tmp/insert_stats.txt", io_lib:fwrite("~p~n", [E]), [append]) 
+	%file:write_file("/tmp/insert_stats.txt", io_lib:fwrite("~p~n", [E]), [append])
+        file:write(IFile, io_lib:fwrite("~p~n", [E]))
    end, Istat),
+   file:close(IFile),
+   {ok, RFile} = file:open("/tmp/read_stats.txt", [write]),
    lists:foreach(fun(E) ->
-	file:write_file("/tmp/read_stats.txt", io_lib:fwrite("~p~n", [E]), [append]) 
+	%file:write_file("/tmp/read_stats.txt", io_lib:fwrite("~p~n", [E]), [append]) 
+        file:write(RFile, io_lib:fwrite("~p~n", [E]))
    end, Rstat),
+   file:close(RFile),
+
    erlang:put(read_stats, []),
    erlang:put(insert_stats, []),
    ok.
