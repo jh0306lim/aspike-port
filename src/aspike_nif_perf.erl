@@ -245,13 +245,24 @@ test_insertion(N, Sleep, PrevLatency, Oks, Errs) ->
    end,
    test_insertion(N - 1, Sleep, Latency, O1, E1).
 
-test_reading(0, _, XDRLat) -> XDRLat;
+test_reading(0, _, XDRLat) -> 
+    io:format("collecting is done, save results", []),
+    XDRList = erlang:get(xdr_stats),
+
+    {ok, IFile} = file:open("/tmp/xdr_stats.txt", [write]),
+    lists:foreach(fun(E) ->
+        file:write(IFile, io_lib:fwrite("~p~n", [E]))
+    end, XDRList),
+    file:close(IFile),
+
+    erlang:put(xdr_stats, []),
+    XDRLat;
 test_reading(N, Sleep, XDRLat) ->
    Key = integer_to_binary(N),
    T1 = erlang:system_time(microsecond),
    {Status, XDRLatRet} = case aspike_nif:binary_get(<<"global-store">>, <<"rtb-gateway-fcap-users">>, Key) of
       {ok, Ret} ->
-	  TW1 = binary_to_integer(proplists:get_value(<<"column2">>, Ret, <<"0">>)),
+          TW1 = binary_to_integer(proplists:get_value(<<"column2">>, Ret, <<"0">>)),
           L1  = binary_to_integer(proplists:get_value(<<"column3">>, Ret, <<"0">>)),
           XDRLat1 = T1 - TW1 - L1,
           io:format("Key: ~p XDRLat: ~p ~n", [Key, XDRLat1]),
@@ -261,6 +272,10 @@ test_reading(N, Sleep, XDRLat) ->
 	    0 -> {err, XDRLat};
             _ -> {nf, XDRLat}
           end
+   end,
+   case erlang:get(xdr_stats) of
+      undefined -> erlang:put(xdr_stats, [XDRLatRet]);
+      XDRList -> erlang:put(xdr_stats, [XDRLatRet | XDRList])
    end,
    case Sleep of
      0 -> ok;
@@ -272,14 +287,27 @@ test_reading(N, Sleep, XDRLat) ->
    end.
   
 dump_stats() -> 
-   Istat = erlang:get(insert_stats),
-   Rstat = erlang:get(read_stats),
+   Istat = case erlang:get(insert_stats) of
+	IsL when is_list(IsL) -> IsL;
+	_ -> []
+   end,
+   Rstat = case erlang:get(read_stats) of
+	RsL when is_list(RsL) -> RsL;
+	_ -> []
+   end,
+   {ok, IFile} = file:open("/tmp/insert_stats.txt", [write]),
    lists:foreach(fun(E) ->
-	file:write_file("/tmp/insert_stats.txt", io_lib:fwrite("~p~n", [E]), [append]) 
+	%file:write_file("/tmp/insert_stats.txt", io_lib:fwrite("~p~n", [E]), [append])
+        file:write(IFile, io_lib:fwrite("~p~n", [E]))
    end, Istat),
+   file:close(IFile),
+   {ok, RFile} = file:open("/tmp/read_stats.txt", [write]),
    lists:foreach(fun(E) ->
-	file:write_file("/tmp/read_stats.txt", io_lib:fwrite("~p~n", [E]), [append]) 
+	%file:write_file("/tmp/read_stats.txt", io_lib:fwrite("~p~n", [E]), [append]) 
+        file:write(RFile, io_lib:fwrite("~p~n", [E]))
    end, Rstat),
+   file:close(RFile),
+
    erlang:put(read_stats, []),
    erlang:put(insert_stats, []),
    ok.
