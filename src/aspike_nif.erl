@@ -55,6 +55,7 @@
     foo/1,
     bar/1,
     binary_put/5,
+    binary_remove/5,
     binary_get/3
 ]).
 
@@ -82,6 +83,7 @@
     foo/1,
     bar/1,
     binary_put/5,
+    binary_remove/5,
     binary_get/3
 ]).
 
@@ -198,9 +200,14 @@ key_put(Namespace, Set, Key, Lst) when
 ->
     not_loaded(?LINE).
 
--spec binary_put(binary(), binary(), binary(), [{binary(), binary()}], integer()) -> 
+-spec binary_put(binary(), binary(), binary(), [{binary(), binary()|integer()|[integer()]}], integer()) -> 
     {ok, string()} | {error, string()}.
 binary_put(_Namespace, _Set, _Key, _BinList, _TTL) ->
+    not_loaded(?LINE).
+
+-spec binary_remove(binary(), binary(), binary(), [binary()], integer()) -> 
+    {ok, string()} | {error, string()}.
+binary_remove(_Namespace, _Set, _Key, _BinNameList, _TTL) ->
     not_loaded(?LINE).
 
 key_remove() ->
