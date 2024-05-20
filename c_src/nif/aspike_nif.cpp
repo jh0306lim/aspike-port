@@ -177,6 +177,88 @@ static ERL_NIF_TERM connect(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[])
     return enif_make_tuple2(env, rc, msg);
 }
 
+static ERL_NIF_TERM binary_remove(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[])
+{
+    ErlNifBinary bin_ns, bin_set, bin_key;
+    unsigned int length;
+    std::string name_space, aspk_set, aspk_key;
+    long ttl;
+
+    if (!enif_inspect_binary(env, argv[0], &bin_ns)) {
+	    return enif_make_badarg(env);
+    }
+    name_space.assign((const char*) bin_ns.data, bin_ns.size);
+
+    if (!enif_inspect_binary(env, argv[1], &bin_set)) {
+	    return enif_make_badarg(env);
+    }
+    aspk_set.assign((const char*) bin_set.data, bin_set.size);
+
+    if (!enif_inspect_binary(env, argv[2], &bin_key)) {
+	    return enif_make_badarg(env);
+    }
+    aspk_key.assign((const char*) bin_key.data, bin_key.size);
+
+    ERL_NIF_TERM list = argv[3];
+    if (!enif_is_list(env, list) || !enif_get_list_length(env, list, &length)) {
+	    return enif_make_badarg(env);
+    }
+
+    if (!enif_get_long(env, argv[4], &ttl)) {
+        return enif_make_badarg(env);
+    }
+
+    ERL_NIF_TERM rc, msg;
+    if (length == 0) {
+        rc = erl_ok;
+        msg = enif_make_string(env, "key_put", ERL_NIF_UTF8);
+        return enif_make_tuple2(env, rc, msg);
+    }
+
+    CHECK_ALL
+
+	as_error err;
+    as_key key;
+	as_record rec;
+
+	as_key_init_str(&key, name_space.c_str(), aspk_set.c_str(), aspk_key.c_str());
+	as_record_inita(&rec, length);
+    rec.ttl = ttl;
+    long ret_val = 0;
+   
+    for (uint i = 0; i < length; i++) {
+        ERL_NIF_TERM head;
+        ERL_NIF_TERM tail;
+        ErlNifBinary bin_bin;
+        std::string bin_str;
+
+        if (!enif_get_list_cell(env, list, &head, &tail)) {
+            break;
+        }
+        if (!enif_inspect_binary(env, head, &bin_bin)) {
+            return enif_make_badarg(env);
+        }
+        bin_str.assign((const char*) bin_bin.data, bin_bin.size);
+
+	    if(!as_record_set_nil(&rec, bin_str.c_str())){
+		    ret_val = 1;
+        }
+    }
+
+    if(!ret_val){
+	// destroy heap record
+    }
+	
+    if (aerospike_key_put(&as, &err, NULL, &key, &rec)  != AEROSPIKE_OK) {
+        rc = erl_error;
+        msg = enif_make_string(env, err.message, ERL_NIF_UTF8);
+    } else {
+        rc = erl_ok;
+        msg = enif_make_string(env, "key_put", ERL_NIF_UTF8);
+    }
+
+    return enif_make_tuple2(env, rc, msg);
+}
 
 static ERL_NIF_TERM binary_put(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[])
 {
@@ -251,30 +333,43 @@ static ERL_NIF_TERM binary_put(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv
         bin_str.assign((const char*) bin_bin.data, bin_bin.size);
 
         if (!enif_inspect_binary(env, tuple[1], &bin_val)) {
-            if (!enif_is_list(env, tuple[1]) || !enif_get_list_length(env, tuple[1], &ts_length)) {
-                return enif_make_badarg(env);
-            }
-            // expecting list of integers
-            auto ts_list = tuple[1];
-            //as_list* as_list_ofints = (as_list *)as_arraylist_new((uint32_t)ts_length, 0);
-            as_arraylist* as_list_ofints = as_arraylist_new((uint32_t)ts_length, 0);
-            for (uint ts_i = 0; ts_i < ts_length; ts_i++) {
-                ERL_NIF_TERM ts_head;
-                ERL_NIF_TERM ts_tail;
+            if(enif_is_number(env, tuple[1])){
                 long i64;
-                if (!enif_get_list_cell(env, ts_list, &ts_head, &ts_tail)) {
-                    break;
+                if(enif_get_int64(env, tuple[1], &i64)){
+                    if(!as_record_set_int64(&rec, bin_str.c_str(), i64)){
+                        ret_val = 1;
+                    }
                 }
-                if(enif_get_int64(env, ts_head, &i64)){
-                    as_arraylist_append_int64(as_list_ofints, i64);
+            } else if(enif_is_atom(env, tuple[1])) { // every atom is considering as undefined to delete this binary
+                if(!as_record_set_nil(&rec, bin_str.c_str())){
+                    ret_val = 1;
                 }
-                ts_list = ts_tail;
+            } else {
+                if (!enif_is_list(env, tuple[1]) || !enif_get_list_length(env, tuple[1], &ts_length)) {
+                    return enif_make_badarg(env);
+                }
+                // expecting list of integers
+                auto ts_list = tuple[1];
+                //as_list* as_list_ofints = (as_list *)as_arraylist_new((uint32_t)ts_length, 0);
+                as_arraylist* as_list_ofints = as_arraylist_new((uint32_t)ts_length, 0);
+                for (uint ts_i = 0; ts_i < ts_length; ts_i++) {
+                    ERL_NIF_TERM ts_head;
+                    ERL_NIF_TERM ts_tail;
+                    long i64;
+                    if (!enif_get_list_cell(env, ts_list, &ts_head, &ts_tail)) {
+                        break;
+                    }
+                    if(enif_get_int64(env, ts_head, &i64)){
+                        as_arraylist_append_int64(as_list_ofints, i64);
+                    }
+                    ts_list = ts_tail;
+                }
+                ((as_val *)as_list_ofints)->type = AS_LIST;
+                if(!as_record_set_list(&rec, bin_str.c_str(), (as_list*)as_list_ofints)){
+                    as_list_destroy((as_list*)as_list_ofints);
+                    ret_val = 1;
+                };
             }
-	    ((as_val *)as_list_ofints)->type = AS_LIST;
-            if(!as_record_set_list(&rec, bin_str.c_str(), (as_list*)as_list_ofints)){
-            	as_list_destroy((as_list*)as_list_ofints);
-		ret_val = 1;
-            };
         }else{
 	    bin_vec.push_back(as_bytes_new(bin_val.size));
 	    as_bytes * bytes_v = bin_vec.back();
@@ -1171,6 +1266,7 @@ static ErlNifFunc nif_funcs[] = {
     NIF_FUN("key_generation", 3, key_generation),
     NIF_FUN("key_put", 4, key_put),
     NIF_FUN("binary_put", 5, binary_put),
+    NIF_FUN("binary_remove", 5, binary_remove),
     NIF_FUN("binary_get", 3, binary_get),
     NIF_FUN("key_remove", 3, key_remove),
     NIF_FUN("key_select", 4, key_select),
