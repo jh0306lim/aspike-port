@@ -351,7 +351,8 @@ static ERL_NIF_TERM cdt_put(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[])
         ops.ttl = ttl;
         uint opnum = 0;
         ErlNifBinary bin_key, bin_val;
-        as_string key_str, subkey1, subkey2, subval1;
+        as_string key_str, subkey1, subkey2;
+        as_bytes subval1;
         as_integer subval2;
         std::string fcap_key, fcap_val, valuesk, valuesk1;
         long i64;
@@ -373,10 +374,12 @@ static ERL_NIF_TERM cdt_put(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[])
             }else if(opnum == 1){
                 //getting fcap value
                 if (enif_inspect_binary(env, ts_head, &bin_val)) {
-                    fcap_val.assign((const char*) bin_val.data, bin_val.size);
+                    //fcap_val.assign((const char*) bin_val.data, bin_val.size);
                     valuesk = "value";
                     as_string_init(&subkey1, (char*)valuesk.c_str(), false);
-                    as_string_init(&subval1, (char*)fcap_val.c_str(), false);
+                    //as_string_init(&subval1, (char*)fcap_val.c_str(), false);
+                    as_bytes_inita(&subval1, bin_val.size);
+                    as_bytes_set(&subval1, 0, bin_val.data, bin_val.size);
                     as_operations_map_put(&ops, bin_str.c_str(), &ctx, &put_mode, (as_val*)&subkey1, (as_val*)&subval1);
                 }
                 opnum++;
@@ -862,6 +865,16 @@ ERL_NIF_TERM get_binary_asval(ErlNifEnv* env, const as_val * val) {
     return fcap_key;
 }
 
+ERL_NIF_TERM get_binaryb_asval(ErlNifEnv* env, const as_val * val) {
+    ERL_NIF_TERM fcap_key;
+    as_bytes *keystr = as_bytes_fromval(val);
+    auto len = as_bytes_size(keystr);
+    unsigned char * val_data;
+    val_data = enif_make_new_binary(env, len, &fcap_key);
+    memcpy(val_data, as_bytes_get(keystr), len);
+    return fcap_key;
+}
+
 static ERL_NIF_TERM format_value_out(ErlNifEnv* env, as_val_t type, as_bin_value *val) {
     switch(type) {
         case AS_INTEGER:
@@ -892,7 +905,7 @@ static ERL_NIF_TERM format_value_out(ErlNifEnv* env, as_val_t type, as_bin_value
         case AS_MAP: {
             auto len = as_map_size((as_map *)(&val->map));
 	        std::vector<ERL_NIF_TERM> * erl_list = new std::vector<ERL_NIF_TERM>();
-	        erl_list->reserve(len);
+	        erl_list->reserve(len*2);
             
             const as_orderedmap *amap = (const as_orderedmap*)&val->map;
             as_orderedmap_iterator it;
@@ -910,11 +923,14 @@ static ERL_NIF_TERM format_value_out(ErlNifEnv* env, as_val_t type, as_bin_value
                 while ( as_orderedmap_iterator_has_next(&iti_int) ) {
                     const as_val* valsm = as_orderedmap_iterator_next(&iti_int);
                     as_pair * aprsm = as_pair_fromval(valsm);
-                    if(as_pair_2(aprsm)->type == 4){
-                        vnt = get_binary_asval(env, as_pair_2(aprsm));
+                    if(as_pair_2(aprsm)->type == 9){
+                        vnt = get_binaryb_asval(env, as_pair_2(aprsm));
                         fccount++;
                     }else if(as_pair_2(aprsm)->type == 3){
                         ttlsm = enif_make_int64(env, as_integer_get((as_integer*)as_pair_2(aprsm)));
+                        fccount++;
+                    }else if(as_pair_2(aprsm)->type == 4){
+                        vnt = get_binary_asval(env, as_pair_2(aprsm));
                         fccount++;
                     }
                 }
@@ -923,8 +939,11 @@ static ERL_NIF_TERM format_value_out(ErlNifEnv* env, as_val_t type, as_bin_value
                 }
             }
             //as_orderedmap_iterator_destroy(it);
-
-	        return enif_make_list_from_array(env, erl_list->data(), len * 2);
+            if(erl_list->size() == 0){
+                return enif_make_list(env, 0);
+            } else {
+	            return enif_make_list_from_array(env, erl_list->data(), erl_list->size());
+            }
         }break;
         default:
             char * val_as_str = as_val_tostring(val);
