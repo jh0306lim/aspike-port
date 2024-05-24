@@ -56,7 +56,11 @@
     bar/1,
     binary_put/5,
     binary_remove/5,
-    binary_get/3
+    binary_get/3,
+    cdt_get/3,
+    cdt_expire/4,
+    cdt_delete_by_keys/5,
+    cdt_put/5
 ]).
 
 -nifs([
@@ -84,7 +88,11 @@
     bar/1,
     binary_put/5,
     binary_remove/5,
-    binary_get/3
+    binary_get/3,
+    cdt_get/3,
+    cdt_expire/4,
+    cdt_delete_by_keys/5,
+    cdt_put/5
 ]).
 
 % -------------------------------------------------------------------------------
@@ -205,6 +213,11 @@ key_put(Namespace, Set, Key, Lst) when
 binary_put(_Namespace, _Set, _Key, _BinList, _TTL) ->
     not_loaded(?LINE).
 
+-spec cdt_put(binary(), binary(), binary(), [{binary(), binary()|integer()|[integer()]}], integer()) -> 
+    {ok, string()} | {error, string()}.
+cdt_put(_Namespace, _Set, _Key, _BinList, _TTL) ->
+    not_loaded(?LINE).
+
 -spec binary_remove(binary(), binary(), binary(), [binary()], integer()) -> 
     {ok, string()} | {error, string()}.
 binary_remove(_Namespace, _Set, _Key, _BinNameList, _TTL) ->
@@ -252,6 +265,18 @@ key_get(Namespace, Set, Key) when is_list(Namespace), is_list(Set), is_list(Key)
 % Gets values of all Bin for Key in Namespace Set.
 -spec binary_get(binary(), binary(), binary()) -> {ok, [{binary(), term()}]} | {error, string()}.
 binary_get(Namespace, Set, Key) when is_binary(Namespace), is_binary(Set), is_binary(Key) ->
+    not_loaded(?LINE).
+
+-spec cdt_get(binary(), binary(), binary()) -> {ok, [{binary(), term()}]} | {error, string()}.
+cdt_get(Namespace, Set, Key) when is_binary(Namespace), is_binary(Set), is_binary(Key) ->
+    not_loaded(?LINE).
+
+-spec cdt_expire(binary(), binary(), binary(), integer()) -> {ok, [{binary(), term()}]} | {error, string()}.
+cdt_expire(Namespace, Set, Key, TTL) when is_binary(Namespace), is_binary(Set), is_binary(Key), is_integer(TTL) ->
+    not_loaded(?LINE).
+
+-spec cdt_delete_by_keys(binary(), binary(), binary(), binary(), [binary()]) -> {ok, [{binary(), term()}]} | {error, string()}.
+cdt_delete_by_keys(Namespace, Set, Key, BinName, SubkeysList) when is_binary(Namespace), is_binary(Set), is_binary(Key), is_binary(BinName), is_list(SubkeysList) ->
     not_loaded(?LINE).
 
 key_generation() ->
