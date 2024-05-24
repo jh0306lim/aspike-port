@@ -24,6 +24,7 @@
 #include <aerospike/as_map_operations.h>
 #include <aerospike/as_orderedmap.h>
 #include <aerospike/as_pair.h>
+#include <aerospike/as_exp.h>
 
 
 // ----------------------------------------------------------------------------
@@ -366,7 +367,6 @@ static ERL_NIF_TERM cdt_put(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[])
                 if (enif_inspect_binary(env, ts_head, &bin_key)) {
                     fcap_key.assign((const char*) bin_key.data, bin_key.size);
                     as_string_init(&key_str, (char*)fcap_key.c_str(), false);
-                    //as_cdt_ctx_add_map_key_create(&ctx, (as_val*)&key_str, AS_MAP_UNORDERED);
                     as_cdt_ctx_add_map_key_create(&ctx, (as_val*)&key_str, AS_MAP_KEY_ORDERED);
                 }
                 opnum++;
@@ -891,12 +891,9 @@ static ERL_NIF_TERM format_value_out(ErlNifEnv* env, as_val_t type, as_bin_value
         }break;
         case AS_MAP: {
             auto len = as_map_size((as_map *)(&val->map));
-            std::cout << "AS_MAP reading" << "\r\n";
 	        std::vector<ERL_NIF_TERM> * erl_list = new std::vector<ERL_NIF_TERM>();
 	        erl_list->reserve(len);
             
-            //conversion_data convd = {A
-            //    .env = env, .count = 0, .udata = erl_list};
             const as_orderedmap *amap = (const as_orderedmap*)&val->map;
             as_orderedmap_iterator it;
             as_orderedmap_iterator_init(&it, amap);
@@ -1085,7 +1082,6 @@ static ERL_NIF_TERM dump_cdt_records(ErlNifEnv* env, const as_record *p_rec) {
         auto namelen = strlen(name);
         uint type = as_bin_get_type(p_bin);
 
-        std::cout << "TYPE:" << type << "\r\n";
 
         unsigned char* name_data;
         ERL_NIF_TERM name_term;
@@ -1101,6 +1097,174 @@ static ERL_NIF_TERM dump_cdt_records(ErlNifEnv* env, const as_record *p_rec) {
 
 	as_record_iterator_destroy(&it);
     return res;
+}
+
+static ERL_NIF_TERM cdt_expire(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[])
+{
+    ErlNifBinary bin_ns, bin_set, bin_key;
+    std::string name_space, aspk_set, aspk_key;
+    long ttl;
+    
+    if (!enif_inspect_binary(env, argv[0], &bin_ns)) {
+	    return enif_make_badarg(env);
+    }
+    name_space.assign((const char*) bin_ns.data, bin_ns.size);
+
+    if (!enif_inspect_binary(env, argv[1], &bin_set)) {
+	    return enif_make_badarg(env);
+    }
+    aspk_set.assign((const char*) bin_set.data, bin_set.size);
+
+    if (!enif_inspect_binary(env, argv[2], &bin_key)) {
+	    return enif_make_badarg(env);
+    }
+    aspk_key.assign((const char*) bin_key.data, bin_key.size);
+    
+    if (!enif_get_long(env, argv[3], &ttl)) {
+        return enif_make_badarg(env);
+    }
+
+    CHECK_ALL
+
+    ERL_NIF_TERM rc, msg;
+	as_error err;
+    as_key key;
+
+	as_key_init_str(&key, name_space.c_str(), aspk_set.c_str(), aspk_key.c_str());
+    
+    as_cdt_ctx ctx;
+    as_cdt_ctx_inita(&ctx, 1);
+    as_operations ops;
+    as_operations_inita(&ops, 1);
+    as_map_policy put_mode;
+    as_map_policy_set(&put_mode, AS_MAP_KEY_ORDERED, AS_MAP_UPDATE);
+
+    as_cdt_ctx_add_map_key(&ctx, (as_val*)&as_cmp_wildcard);
+    //as_string key_main;
+    //std::string main_key = "campaign.333";
+    //as_string_init(&key_main, (char*)main_key.c_str(), false);
+    //as_cdt_ctx_add_map_key(&ctx, (as_val*)&key_main);
+
+    as_string key_ttl;
+    std::string ttl_key = "3333";
+    std::string bin_str = "fcap_map";
+    as_string_init(&key_ttl, (char*)ttl_key.c_str(), false);
+    //as_cdt_ctx_add_map_key(&ctx, (as_val*)&key_ttl);
+    as_integer asv_begin, asv_end;
+    as_integer_init(&asv_begin, 0);
+    as_integer_init(&asv_end, ttl);
+    as_operations_map_remove_by_value_range(&ops, bin_str.c_str(), &ctx, (as_val*)&asv_begin, (as_val*)&asv_end, AS_MAP_RETURN_COUNT);
+    //as_operations_map_remove_by_value(&ops, bin_str.c_str(), &ctx, (as_val*)&asv_begin, AS_MAP_RETURN_COUNT);
+    //as_operations_map_remove_by_key(&ops, bin_str.c_str(), &ctx, (as_val*)&key_ttl, AS_MAP_RETURN_NONE);
+    //as_operations_map_get_by_value_range(&ops, bin_str.c_str(), &ctx, (as_val*)&asv_begin, (as_val*)&asv_end, AS_MAP_RETURN_NONE);
+    //as_operations_map_remove_by_value(&ops, bin_str.c_str(), &ctx, (as_val*)&key_ttl, AS_MAP_RETURN_COUNT);
+
+    // working code delete by key lists
+    /*std::string bin_str = "fcap_map";
+    as_operations ops;
+    as_operations_inita(&ops, 1);
+    as_map_policy put_mode;
+    as_map_policy_set(&put_mode, AS_MAP_KEY_ORDERED, AS_MAP_UPDATE);
+
+    as_arraylist remove_list;
+	as_arraylist_init(&remove_list, 2, 2);
+	as_arraylist_append_str(&remove_list, "campaign.222");
+	as_arraylist_append_str(&remove_list, "campaign.444");
+
+    //as_operations_add_map_remove_by_key_list(&ops, bin_str.c_str(), (as_list*)&remove_list, AS_MAP_RETURN_COUNT);
+    as_operations_add_map_remove_by_key_list(&ops, bin_str.c_str(), (as_list*)&remove_list, AS_MAP_RETURN_NONE);
+    as_arraylist_destroy(&remove_list);*/
+
+    if(aerospike_key_operate(&as, &err, NULL, &key, &ops, NULL) != AEROSPIKE_OK){
+        rc = erl_error;
+        msg = enif_make_string(env, err.message, ERL_NIF_UTF8);
+    } else {
+        rc = erl_ok;
+        msg = enif_make_string(env, "muhahah", ERL_NIF_UTF8);
+    }
+    as_operations_destroy(&ops);
+
+    return enif_make_tuple2(env, rc, msg);
+}
+
+static ERL_NIF_TERM cdt_delete_by_keys(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[])
+{
+    ErlNifBinary bin_ns, bin_set, bin_key, bin_name;
+    std::string name_space, aspk_set, aspk_key, bin_str;
+    unsigned int length;
+    
+    if (!enif_inspect_binary(env, argv[0], &bin_ns)) {
+	    return enif_make_badarg(env);
+    }
+    name_space.assign((const char*) bin_ns.data, bin_ns.size);
+
+    if (!enif_inspect_binary(env, argv[1], &bin_set)) {
+	    return enif_make_badarg(env);
+    }
+    aspk_set.assign((const char*) bin_set.data, bin_set.size);
+
+    if (!enif_inspect_binary(env, argv[2], &bin_key)) {
+	    return enif_make_badarg(env);
+    }
+    aspk_key.assign((const char*) bin_key.data, bin_key.size);
+    
+    if (!enif_inspect_binary(env, argv[3], &bin_name)) {
+	    return enif_make_badarg(env);
+    }
+    bin_str.assign((const char*) bin_name.data, bin_name.size);
+    
+    ERL_NIF_TERM list = argv[4];
+    if (!enif_is_list(env, list) || !enif_get_list_length(env, list, &length)) {
+	    return enif_make_badarg(env);
+    }
+
+    CHECK_ALL
+    
+    as_arraylist remove_list;
+	as_arraylist_init(&remove_list, length, length);
+
+    ERL_NIF_TERM rc, msg;
+	as_error err;
+    as_key key;
+
+	as_key_init_str(&key, name_space.c_str(), aspk_set.c_str(), aspk_key.c_str());
+    
+    as_operations ops;
+    as_operations_inita(&ops, 1);
+    as_map_policy put_mode;
+    as_map_policy_set(&put_mode, AS_MAP_KEY_ORDERED, AS_MAP_UPDATE);
+
+    ErlNifBinary subkey_term;
+    std::string subkey_str;
+    unsigned int subkeys_num = 0;
+    for (uint i = 0; i < length; i++) {
+        ERL_NIF_TERM head;
+        ERL_NIF_TERM tail;
+        if (!enif_get_list_cell(env, list, &head, &tail)) {
+            break;
+        }
+        if (enif_inspect_binary(env, head, &subkey_term)) {
+            subkey_str.assign((const char*) subkey_term.data, subkey_term.size);
+	        as_arraylist_append_str(&remove_list, (char*)subkey_str.c_str());
+            subkeys_num++;
+        }
+        list = tail;
+    }
+    if(subkeys_num == length){
+        as_operations_add_map_remove_by_key_list(&ops, bin_str.c_str(), (as_list*)&remove_list, AS_MAP_RETURN_NONE);
+    }
+    as_arraylist_destroy(&remove_list);
+
+    if(aerospike_key_operate(&as, &err, NULL, &key, &ops, NULL) != AEROSPIKE_OK){
+        rc = erl_error;
+        msg = enif_make_string(env, err.message, ERL_NIF_UTF8);
+    } else {
+        rc = erl_ok;
+        msg = enif_make_string(env, "keys_deleted", ERL_NIF_UTF8);
+    }
+    as_operations_destroy(&ops);
+
+    return enif_make_tuple2(env, rc, msg);
 }
 
 static ERL_NIF_TERM cdt_get(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[])
@@ -1600,6 +1764,8 @@ static ErlNifFunc nif_funcs[] = {
     NIF_FUN("binary_remove", 5, binary_remove),
     NIF_FUN("binary_get", 3, binary_get),
     NIF_FUN("cdt_get", 3, cdt_get),
+    NIF_FUN("cdt_expire", 4, cdt_expire),
+    NIF_FUN("cdt_delete_by_keys", 5, cdt_delete_by_keys),
     NIF_FUN("key_remove", 3, key_remove),
     NIF_FUN("key_select", 4, key_select),
     NIF_FUN("nif_node_random", 0, node_random),
