@@ -275,7 +275,7 @@ cdt_get(Namespace, Set, Key) when is_binary(Namespace), is_binary(Set), is_binar
 cdt_expire(Namespace, Set, Key, TTL) when is_binary(Namespace), is_binary(Set), is_binary(Key), is_integer(TTL) ->
     not_loaded(?LINE).
 
--spec cdt_delete_by_keys(binary(), binary(), binary(), binary(), [binary()]) -> {ok, [{binary(), term()}]} | {error, string()}.
+-spec cdt_delete_by_keys(binary(), binary(), binary(), binary(), [binary()]) -> {ok, string()} | {error, string()}.
 cdt_delete_by_keys(Namespace, Set, Key, BinName, SubkeysList) when is_binary(Namespace), is_binary(Set), is_binary(Key), is_binary(BinName), is_list(SubkeysList) ->
     not_loaded(?LINE).
 
