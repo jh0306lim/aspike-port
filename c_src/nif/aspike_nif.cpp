@@ -296,6 +296,21 @@ static ERL_NIF_TERM cdt_put(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[])
     if (!enif_get_long(env, argv[4], &ttl)) {
         return enif_make_badarg(env);
     }
+
+    // {max_retries, sleep_between_retries, socket_timeout, total_timeout}
+    const ERL_NIF_TERM* policy = NULL;
+    int policy_length;
+    long max_retries = 0;
+    long sleep_between_retries = 0;
+    long socket_timeout = 30000;
+    long total_timeout = 1000;
+    if(!enif_get_tuple(env, argv[5], &policy_length, &policy) || policy_length != 4){
+        return enif_make_badarg(env);
+    }
+    enif_get_long(env, policy[0], &max_retries);
+    enif_get_long(env, policy[1], &sleep_between_retries);
+    enif_get_long(env, policy[2], &socket_timeout);
+    enif_get_long(env, policy[3], &total_timeout);
     
     ERL_NIF_TERM rc, msg;
     if (length == 0) {
@@ -432,6 +447,11 @@ static ERL_NIF_TERM cdt_put(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[])
     as_policy_operate p;
 	as_policy_operate_init(&p);
     p.ttl = ttl;
+    p.base.max_retries = max_retries;
+    p.base.sleep_between_retries = sleep_between_retries;
+    p.base.socket_timeout = socket_timeout;
+    p.base.total_timeout = total_timeout;
+
     if(aerospike_key_operate(&as, &err, &p, &key, &ops, &rec1) != AEROSPIKE_OK){
         rc = erl_error;
         msg = enif_make_string(env, err.message, ERL_NIF_UTF8);
@@ -1306,6 +1326,21 @@ static ERL_NIF_TERM cdt_get(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[])
     }
     aspk_key.assign((const char*) bin_key.data, bin_key.size);
 
+    // {max_retries, sleep_between_retries, socket_timeout, total_timeout}
+    const ERL_NIF_TERM* policy = NULL;
+    int policy_length;
+    long max_retries = 0;
+    long sleep_between_retries = 0;
+    long socket_timeout = 30000;
+    long total_timeout = 1000;
+    if(!enif_get_tuple(env, argv[3], &policy_length, &policy) || policy_length != 4){
+        return enif_make_badarg(env);
+    }
+    enif_get_long(env, policy[0], &max_retries);
+    enif_get_long(env, policy[1], &sleep_between_retries);
+    enif_get_long(env, policy[2], &socket_timeout);
+    enif_get_long(env, policy[3], &total_timeout);
+
     CHECK_ALL
 
     ERL_NIF_TERM rc, msg;
@@ -1314,6 +1349,12 @@ static ERL_NIF_TERM cdt_get(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[])
     as_record* p_rec = NULL;    
 
 	as_key_init_str(&key, name_space.c_str(), aspk_set.c_str(), aspk_key.c_str());
+    as_policy_read p;
+	as_policy_read_init(&p);
+    p.base.max_retries = max_retries;
+    p.base.sleep_between_retries = sleep_between_retries;
+    p.base.socket_timeout = socket_timeout;
+    p.base.total_timeout = total_timeout;
 
     if (aerospike_key_get(&as, &err, NULL, &key, &p_rec)  != AEROSPIKE_OK) {
         if (p_rec != NULL) {
@@ -1779,10 +1820,10 @@ static ErlNifFunc nif_funcs[] = {
     NIF_FUN("key_generation", 3, key_generation),
     NIF_FUN("key_put", 4, key_put),
     NIF_FUN("binary_put", 5, binary_put),
-    NIF_FUN("cdt_put", 5, cdt_put),
+    NIF_FUN("cdt_put", 6, cdt_put),
     NIF_FUN("binary_remove", 5, binary_remove),
     NIF_FUN("binary_get", 3, binary_get),
-    NIF_FUN("cdt_get", 3, cdt_get),
+    NIF_FUN("cdt_get", 4, cdt_get),
     NIF_FUN("cdt_expire", 4, cdt_expire),
     NIF_FUN("cdt_delete_by_keys", 5, cdt_delete_by_keys),
     NIF_FUN("key_remove", 3, key_remove),
