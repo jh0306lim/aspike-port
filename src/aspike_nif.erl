@@ -57,10 +57,12 @@
     binary_put/5,
     binary_remove/5,
     binary_get/3,
+    cdt_get/4,
     cdt_get/3,
     cdt_expire/4,
     cdt_delete_by_keys/5,
-    cdt_put/5
+    cdt_put/5,
+    cdt_put/6
 ]).
 
 -nifs([
@@ -89,10 +91,10 @@
     binary_put/5,
     binary_remove/5,
     binary_get/3,
-    cdt_get/3,
+    cdt_get/4,
     cdt_expire/4,
     cdt_delete_by_keys/5,
-    cdt_put/5
+    cdt_put/6
 ]).
 
 % -------------------------------------------------------------------------------
@@ -213,9 +215,14 @@ key_put(Namespace, Set, Key, Lst) when
 binary_put(_Namespace, _Set, _Key, _BinList, _TTL) ->
     not_loaded(?LINE).
 
--spec cdt_put(binary(), binary(), binary(), [{binary(), binary()|integer()|[integer()]}], integer()) -> 
-    {ok, string()} | {error, string()}.
-cdt_put(_Namespace, _Set, _Key, _BinList, _TTL) ->
+% {MaxRetries, SleepBetweenRetries, SocketTimeout, TotalTimeout}  timeouts in milliseconds
+cdt_put(Namespace, Set, Key, BinList, TTL) ->
+    cdt_put(Namespace, Set, Key, BinList, TTL, {0, 0, 30000, 1000}).
+-spec cdt_put(binary(), binary(), binary(), 
+        [{binary(), binary()|integer()|[integer()]}], integer(), 
+        {integer(), integer(), integer(), integer()}) -> 
+            {ok, string()} | {error, string()}.
+cdt_put(_Namespace, _Set, _Key, _BinList, _TTL, _Policy) ->
     not_loaded(?LINE).
 
 -spec binary_remove(binary(), binary(), binary(), [binary()], integer()) -> 
@@ -267,15 +274,18 @@ key_get(Namespace, Set, Key) when is_list(Namespace), is_list(Set), is_list(Key)
 binary_get(Namespace, Set, Key) when is_binary(Namespace), is_binary(Set), is_binary(Key) ->
     not_loaded(?LINE).
 
--spec cdt_get(binary(), binary(), binary()) -> {ok, [{binary(), term()}]} | {error, string()}.
-cdt_get(Namespace, Set, Key) when is_binary(Namespace), is_binary(Set), is_binary(Key) ->
+cdt_get(Namespace, Set, Key) ->
+    cdt_get(Namespace, Set, Key, {0, 0, 30000, 1000}).
+% {MaxRetries, SleepBetweenRetries, SocketTimeout, TotalTimeout}  timeouts in milliseconds
+-spec cdt_get(binary(), binary(), binary(), {integer(), integer(), integer(), integer()}) -> {ok, [{binary(), term()}]} | {error, string()}.
+cdt_get(Namespace, Set, Key, _Policy) when is_binary(Namespace), is_binary(Set), is_binary(Key) ->
     not_loaded(?LINE).
 
 -spec cdt_expire(binary(), binary(), binary(), integer()) -> {ok, [{binary(), term()}]} | {error, string()}.
 cdt_expire(Namespace, Set, Key, TTL) when is_binary(Namespace), is_binary(Set), is_binary(Key), is_integer(TTL) ->
     not_loaded(?LINE).
 
--spec cdt_delete_by_keys(binary(), binary(), binary(), binary(), [binary()]) -> {ok, [{binary(), term()}]} | {error, string()}.
+-spec cdt_delete_by_keys(binary(), binary(), binary(), binary(), [binary()]) -> {ok, string()} | {error, string()}.
 cdt_delete_by_keys(Namespace, Set, Key, BinName, SubkeysList) when is_binary(Namespace), is_binary(Set), is_binary(Key), is_binary(BinName), is_list(SubkeysList) ->
     not_loaded(?LINE).
 
