@@ -458,9 +458,10 @@ static ERL_NIF_TERM cdt_put(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[])
     } else {
         rc = erl_ok;
         msg = enif_make_string(env, "put", ERL_NIF_UTF8);
-        //as_record_destroy(rec);
+        as_record_destroy(&rec);
     }
     as_operations_destroy(&ops);
+    as_key_destroy(&key);
 
 
 
@@ -954,15 +955,18 @@ static ERL_NIF_TERM format_value_out(ErlNifEnv* env, as_val_t type, as_bin_value
                         fccount++;
                     }
                 }
+                as_orderedmap_iterator_destroy(&iti_int);
                 if(fccount == 2){
                     erl_list->push_back(enif_make_tuple2(env, vnt, ttlsm));
                 }
             }
-            //as_orderedmap_iterator_destroy(it);
+            as_orderedmap_iterator_destroy(&it);
             if(erl_list->size() == 0){
                 return enif_make_list(env, 0);
             } else {
-	            return enif_make_list_from_array(env, erl_list->data(), erl_list->size());
+	            auto dlret = enif_make_list_from_array(env, erl_list->data(), erl_list->size());
+                delete erl_list;
+                return dlret;
             }
         }break;
         default:
@@ -1361,9 +1365,12 @@ static ERL_NIF_TERM cdt_get(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[])
             as_record_destroy(p_rec);
         }
         rc = erl_error;
+        as_key_destroy(&key);
         msg = enif_make_string(env, err.message, ERL_NIF_UTF8);
         return enif_make_tuple2(env, rc, msg);
     }
+
+    as_key_destroy(&key);
     if (p_rec == NULL) {
         rc = erl_error;
         msg = enif_make_string(env, "NULL p_rec - internal error", ERL_NIF_UTF8);

@@ -19,8 +19,49 @@
 
    test_insertion/5,
    test_reading/3,
-   dump_stats/0
+   dump_stats/0,
+
+   cdt_insert_test/5,
+   cdt_get_test/4
 ]).
+
+
+-define(FCAP_BIN, <<"fcap_map">>).
+
+cdt_get_test(0, _, _, _) -> ok;
+cdt_get_test(N, NKeys, TTL, Timeout) ->
+    Key = erlang:iolist_to_binary([<<"Key_Key_Key_Key.namespace.1111111">>, integer_to_binary(rand:uniform(NKeys))]),
+    aspike_nif:cdt_get(
+        <<"test">>, <<"gateway_fcap_test1">>, Key, {2, 1000, 30000, 1000}
+    ),
+    case Timeout of
+        0 -> ok;
+        _ -> timer:sleep(Timeout)
+    end,
+    cdt_get_test(N-1, NKeys, TTL, Timeout).
+
+cdt_insert_test(0, _, _, _, _) -> ok;
+cdt_insert_test(N, NKeys, NSKeys, TTL, Timeout) ->
+    Key = erlang:iolist_to_binary([<<"Key_Key_Key_Key.namespace.1111111">>, integer_to_binary(rand:uniform(NKeys))]),
+    Subkey = erlang:iolist_to_binary([<<"Key_Key_Key_Key.subkey">>, integer_to_binary(rand:uniform(NSKeys))]),
+    Value = base64:encode(crypto:strong_rand_bytes(40)),
+    Bins = [
+        {?FCAP_BIN, [Subkey, Value, erlang:system_time(seconds) + TTL]}
+    ],
+    aspike_nif:cdt_put(
+        <<"test">>,
+        <<"gateway_fcap_test1">>,
+        Key,
+        Bins,
+        TTL,
+        {3, 1000, 30000, 1000}
+    ),
+    case Timeout of
+        0 -> ok;
+        _ -> timer:sleep(Timeout)
+    end,
+
+    cdt_insert_test(N-1, NKeys, NSKeys, TTL, Timeout).
 
 % single process insert
 sp_insert(N) ->
