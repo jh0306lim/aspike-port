@@ -329,7 +329,9 @@ static ERL_NIF_TERM cdt_put(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[])
 	as_record rec;
 	as_key_init_str(&key, name_space.c_str(), aspk_set.c_str(), aspk_key.c_str());
 	as_record_inita(&rec, length);
-    rec.ttl = ttl;
+    if(ttl != 0){
+        rec.ttl = ttl;
+    }
         
     as_cdt_ctx ctx;
     as_cdt_ctx_inita(&ctx, 1);
@@ -366,7 +368,11 @@ static ERL_NIF_TERM cdt_put(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[])
         }
         auto ts_list = tuple[1];
         as_operations_inita(&ops, 2);
-        ops.ttl = ttl;
+        if(ttl != 0){
+            ops.ttl = ttl;
+        } else {
+            ops.ttl = -2;
+        }
         uint opnum = 0;
         ErlNifBinary bin_key, bin_val;
         as_string key_str, subkey1, subkey2;
