@@ -61,6 +61,7 @@
     cdt_get/3,
     cdt_expire/4,
     cdt_delete_by_keys/5,
+    cdt_delete_by_keys_batch/4,
     cdt_put/5,
     cdt_put/6
 ]).
@@ -94,6 +95,7 @@
     cdt_get/4,
     cdt_expire/4,
     cdt_delete_by_keys/5,
+    cdt_delete_by_keys_batch/4,
     cdt_put/6
 ]).
 
@@ -287,6 +289,10 @@ cdt_expire(Namespace, Set, Key, TTL) when is_binary(Namespace), is_binary(Set), 
 
 -spec cdt_delete_by_keys(binary(), binary(), binary(), binary(), [binary()]) -> {ok, string()} | {error, string()}.
 cdt_delete_by_keys(Namespace, Set, Key, BinName, SubkeysList) when is_binary(Namespace), is_binary(Set), is_binary(Key), is_binary(BinName), is_list(SubkeysList) ->
+    not_loaded(?LINE).
+
+-spec cdt_delete_by_keys_batch(binary(), binary(), binary(), [{binary(), [binary()]}]) -> {ok, [integer()]} | {error, string()}.
+cdt_delete_by_keys_batch(Namespace, Set, BinName, KeysSubkeysList) when is_binary(Namespace), is_binary(Set), is_binary(BinName), is_list(KeysSubkeysList) ->
     not_loaded(?LINE).
 
 key_generation() ->

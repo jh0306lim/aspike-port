@@ -25,6 +25,9 @@
 #include <aerospike/as_orderedmap.h>
 #include <aerospike/as_pair.h>
 #include <aerospike/as_exp.h>
+#include <aerospike/as_batch.h>
+#include <aerospike/aerospike_batch.h>
+#include <aerospike/as_arraylist.h>
 
 
 // ----------------------------------------------------------------------------
@@ -326,7 +329,9 @@ static ERL_NIF_TERM cdt_put(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[])
 	as_record rec;
 	as_key_init_str(&key, name_space.c_str(), aspk_set.c_str(), aspk_key.c_str());
 	as_record_inita(&rec, length);
-    rec.ttl = ttl;
+    if(ttl != 0){
+        rec.ttl = ttl;
+    }
         
     as_cdt_ctx ctx;
     as_cdt_ctx_inita(&ctx, 1);
@@ -363,7 +368,11 @@ static ERL_NIF_TERM cdt_put(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[])
         }
         auto ts_list = tuple[1];
         as_operations_inita(&ops, 2);
-        ops.ttl = ttl;
+        if(ttl != 0){
+            ops.ttl = ttl;
+        } else {
+            ops.ttl = -2;
+        }
         uint opnum = 0;
         ErlNifBinary bin_key, bin_val;
         as_string key_str, subkey1, subkey2;
@@ -458,9 +467,10 @@ static ERL_NIF_TERM cdt_put(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[])
     } else {
         rc = erl_ok;
         msg = enif_make_string(env, "put", ERL_NIF_UTF8);
-        //as_record_destroy(rec);
+        as_record_destroy(&rec);
     }
     as_operations_destroy(&ops);
+    as_key_destroy(&key);
 
 
 
@@ -954,15 +964,18 @@ static ERL_NIF_TERM format_value_out(ErlNifEnv* env, as_val_t type, as_bin_value
                         fccount++;
                     }
                 }
+                as_orderedmap_iterator_destroy(&iti_int);
                 if(fccount == 2){
                     erl_list->push_back(enif_make_tuple2(env, vnt, ttlsm));
                 }
             }
-            //as_orderedmap_iterator_destroy(it);
+            as_orderedmap_iterator_destroy(&it);
             if(erl_list->size() == 0){
                 return enif_make_list(env, 0);
             } else {
-	            return enif_make_list_from_array(env, erl_list->data(), erl_list->size());
+	            auto dlret = enif_make_list_from_array(env, erl_list->data(), erl_list->size());
+                delete erl_list;
+                return dlret;
             }
         }break;
         default:
@@ -1226,6 +1239,130 @@ static ERL_NIF_TERM cdt_expire(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv
     return enif_make_tuple2(env, rc, msg);
 }
 
+static ERL_NIF_TERM cdt_delete_by_keys_batch(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[])
+{
+    ErlNifBinary bin_ns, bin_set,  bin_name;
+    std::string name_space, aspk_set, aspk_key, bin_str;
+    unsigned int length;
+
+    
+    if (!enif_inspect_binary(env, argv[0], &bin_ns)) {
+	    return enif_make_badarg(env);
+    }
+    name_space.assign((const char*) bin_ns.data, bin_ns.size);
+
+    if (!enif_inspect_binary(env, argv[1], &bin_set)) {
+	    return enif_make_badarg(env);
+    }
+    aspk_set.assign((const char*) bin_set.data, bin_set.size);
+    
+    if (!enif_inspect_binary(env, argv[2], &bin_name)) {
+	    return enif_make_badarg(env);
+    }
+    bin_str.assign((const char*) bin_name.data, bin_name.size);
+    
+    ERL_NIF_TERM key_subkeys_list = argv[3];
+    if (!enif_is_list(env, key_subkeys_list) || !enif_get_list_length(env, key_subkeys_list, &length)) {
+	    return enif_make_badarg(env);
+    }
+
+    CHECK_ALL
+    ERL_NIF_TERM rc, msg;
+    std::vector<std::string> bin_str_list(length);
+    std::vector<std::vector<std::string>> skeys_lst; 
+    std::vector<as_batch_write_record*> abwrs(length);
+    std::vector<as_operations> wopsl(length);
+    std::vector<as_arraylist> rval(length);
+
+    as_batch_records recs;
+	as_batch_records_inita(&recs, length);
+
+    for (uint i = 0; i < length; i++) {
+        ERL_NIF_TERM head;
+        ERL_NIF_TERM tail;
+        ErlNifBinary bin_bin;
+
+        if (!enif_get_list_cell(env, key_subkeys_list, &head, &tail)) {
+            break;
+        }
+        const ERL_NIF_TERM* ksk_tuple = NULL;
+        int ksk_length;
+        if(!enif_get_tuple(env, head, &ksk_length, &ksk_tuple) || ksk_length != 2){
+            return enif_make_badarg(env);
+        }
+        
+        if (!enif_inspect_binary(env, ksk_tuple[0], &bin_bin)) {
+            return enif_make_badarg(env);
+        }
+        bin_str_list[i].assign((const char*) bin_bin.data, bin_bin.size);
+        
+        unsigned int ts_length;
+        if (!enif_is_list(env, ksk_tuple[1]) || !enif_get_list_length(env, ksk_tuple[1], &ts_length)) {
+            return enif_make_badarg(env);
+        }
+
+        abwrs[i] = as_batch_write_reserve(&recs);
+	    as_key_init_str(&(abwrs[i]->key), name_space.c_str(), aspk_set.c_str(), bin_str_list[i].c_str());
+
+        auto ts_list = ksk_tuple[1];
+        std::vector<std::string> bin_str_sk_list(ts_length);
+	    as_arraylist_init(&(rval[i]), ts_length, ts_length);
+        for(uint j = 0; j < ts_length; j++){
+            ERL_NIF_TERM skl_head;
+            ERL_NIF_TERM skl_tail;
+            ErlNifBinary skl_bin_bin;
+            if (!enif_get_list_cell(env, ts_list, &skl_head, &skl_tail)) {
+                break;
+            }
+            
+            if (!enif_inspect_binary(env, skl_head, &skl_bin_bin)) {
+                return enif_make_badarg(env);
+            }
+            bin_str_sk_list[j].assign((const char*) skl_bin_bin.data, skl_bin_bin.size);
+	        as_arraylist_append_str(&(rval[i]), (char*)bin_str_sk_list[j].c_str());
+
+            ts_list = skl_tail;
+        }
+        skeys_lst.push_back(bin_str_sk_list);
+        as_operations_inita(&(wopsl[i]), 1);
+        as_operations_add_map_remove_by_key_list(&(wopsl[i]), bin_str.c_str(), (as_list*)&(rval[i]), AS_MAP_RETURN_NONE);
+        wopsl[i].ttl = AS_RECORD_CLIENT_DEFAULT_TTL;
+        abwrs[i]->ops = &(wopsl[i]);
+
+        key_subkeys_list = tail;
+    }
+
+    as.config.policies.batch_write.ttl = 1000;
+    as_error err;
+	as_status status = aerospike_batch_write(&as, &err, NULL, &recs);
+
+	std::vector<ERL_NIF_TERM> * erl_list = new std::vector<ERL_NIF_TERM>();
+    for(auto aitr : abwrs){
+        erl_list->push_back(enif_make_int(env, aitr->result));
+        /*if(aitr->result == AEROSPIKE_OK){
+            std::cout << "WOPOK! \r\n";
+        }else{
+            std::cout << "WOPNOK!: " << std::to_string(aitr->result) << "\r\n";
+        }*/
+    }
+    auto opsl = enif_make_list_from_array(env, erl_list->data(), erl_list->size());
+    delete erl_list;
+
+    for(auto vitr : wopsl){
+        as_operations_destroy(&vitr);
+    }
+
+    as_batch_records_destroy(&recs);
+    if(status != AEROSPIKE_OK){
+        rc = erl_error;
+        msg = enif_make_string(env, err.message, ERL_NIF_UTF8);
+        return enif_make_tuple2(env, rc, msg);
+    } else {
+        rc = erl_ok; 
+        return enif_make_tuple2(env, rc, opsl);
+    }
+}
+
 static ERL_NIF_TERM cdt_delete_by_keys(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[])
 {
     ErlNifBinary bin_ns, bin_set, bin_key, bin_name;
@@ -1361,9 +1498,12 @@ static ERL_NIF_TERM cdt_get(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[])
             as_record_destroy(p_rec);
         }
         rc = erl_error;
+        as_key_destroy(&key);
         msg = enif_make_string(env, err.message, ERL_NIF_UTF8);
         return enif_make_tuple2(env, rc, msg);
     }
+
+    as_key_destroy(&key);
     if (p_rec == NULL) {
         rc = erl_error;
         msg = enif_make_string(env, "NULL p_rec - internal error", ERL_NIF_UTF8);
@@ -1826,6 +1966,7 @@ static ErlNifFunc nif_funcs[] = {
     NIF_FUN("cdt_get", 4, cdt_get),
     NIF_FUN("cdt_expire", 4, cdt_expire),
     NIF_FUN("cdt_delete_by_keys", 5, cdt_delete_by_keys),
+    NIF_FUN("cdt_delete_by_keys_batch", 4, cdt_delete_by_keys_batch),
     NIF_FUN("key_remove", 3, key_remove),
     NIF_FUN("key_select", 4, key_select),
     NIF_FUN("nif_node_random", 0, node_random),

@@ -89,6 +89,17 @@
     port_info/0,
     help/0,
     help/1,
+
+
+    cdt_get/4,
+    cdt_get/3,
+    cdt_expire/4,
+    cdt_delete_by_keys/5,
+    cdt_delete_by_keys_batch/4,
+    cdt_put/5,
+    cdt_put/6,
+    binary_remove/5,
+
     % ------
     bar/1,
     foo/1
@@ -376,13 +387,48 @@ foo(X) when is_integer(X) ->
 bar(X) ->
     command({bar, X}).
 
+%--------------------------------
+
+cdt_get(Namespace, Set, Key) ->
+    cdt_get(Namespace, Set, Key, {0, 0, 30000, 1000}).
+% {MaxRetries, SleepBetweenRetries, SocketTimeout, TotalTimeout}  timeouts in milliseconds
+-spec cdt_get(binary(), binary(), binary(), {integer(), integer(), integer(), integer()}) -> {ok, [{binary(), term()}]} | {error, string()}.
+cdt_get(Namespace, Set, Key, Policy) when is_binary(Namespace), is_binary(Set), is_binary(Key) ->
+    command({cdt_get, Namespace, Set, Key, Policy}).
+
+-spec cdt_expire(binary(), binary(), binary(), integer()) -> {ok, [{binary(), term()}]} | {error, string()}.
+cdt_expire(Namespace, Set, Key, TTL) when is_binary(Namespace), is_binary(Set), is_binary(Key), is_integer(TTL) ->
+    command({cdt_expire, Namespace, Set, Key, TTL}).
+
+-spec cdt_delete_by_keys(binary(), binary(), binary(), binary(), [binary()]) -> {ok, string()} | {error, string()}.
+cdt_delete_by_keys(Namespace, Set, Key, BinName, SubkeysList) when is_binary(Namespace), is_binary(Set), is_binary(Key), is_binary(BinName), is_list(SubkeysList) ->
+    command({cdt_delete_by_keys, Namespace, Set, Key, BinName, SubkeysList}).
+
+-spec cdt_delete_by_keys_batch(binary(), binary(), binary(), [{binary(), [binary()]}]) -> {ok, [integer()]} | {error, string()}.
+cdt_delete_by_keys_batch(Namespace, Set, BinName, KeysSubkeysList) when is_binary(Namespace), is_binary(Set), is_binary(BinName), is_list(KeysSubkeysList) ->
+    command({cdt_delete_by_keys_batch, Namespace, Set, BinName, KeysSubkeysList}).
+
+cdt_put(Namespace, Set, Key, BinList, TTL) ->
+    cdt_put(Namespace, Set, Key, BinList, TTL, {0, 0, 30000, 1000}).
+-spec cdt_put(binary(), binary(), binary(), 
+        [{binary(), binary()|integer()|[integer()]}], integer(), 
+        {integer(), integer(), integer(), integer()}) -> 
+            {ok, string()} | {error, string()}.
+cdt_put(Namespace, Set, Key, BinList, TTL, Policy) ->
+    command({cdt_put, Namespace, Set, Key, BinList, TTL, Policy}).
+
+-spec binary_remove(binary(), binary(), binary(), [binary()], integer()) -> 
+    {ok, string()} | {error, string()}.
+binary_remove(Namespace, Set, Key, BinNameList, TTL) ->
+    command({binary_remove, Namespace, Set, Key, BinNameList, TTL}).
+
 % -------------------------------------------------------------------------------
 % Callbacks
 % -------------------------------------------------------------------------------
 
 -spec init(string()) -> {ok, state()}.
 init(ExtPrg) ->
-    io:format("WORKET starting ~p ~n", [self()]),
+    io:format("WORKER starting ~p ~p ~n", [self(), ExtPrg]),
     process_flag(trap_exit, true),
     Port = open_port({spawn_executable, ExtPrg}, [{packet, 2}, binary, nouse_stdio]),
     Pid = self(),
@@ -394,9 +440,12 @@ handle_call({command, {aerospike_init}}, {Caller, _}, State = #state{port = Port
     {ok, Host} = application:get_env(aspike_port, host),
     {ok, Prt} = application:get_env(aspike_port, port),
     AHRet = call_port(Caller, Port, {host_add, Host, Prt}),
-    {ok, User} = application:get_env(aspike_port, user),
-    {ok, Password} = application:get_env(aspike_port, psw),
-    ConnRet = call_port(Caller, Port, {connect, User, Password}),
+    User = application:get_env(aspike_port, user, undefined),
+    Password = application:get_env(aspike_port, psw, undefined),
+    ConnRet = case {User, Password} of
+        {undefined, undefined} -> call_port(Caller, Port, {anon_connect});
+        _ -> call_port(Caller, Port, {connect, User, Password})
+    end,
     {reply, {Res, AHRet, ConnRet}, State};
 handle_call({command, Msg}, {Caller, _}, State = #state{port = Port}) ->
     Res = call_port(Caller, Port, Msg),
