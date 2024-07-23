@@ -20,6 +20,14 @@
 #include <aerospike/as_cluster.h>
 #include <aerospike/as_lookup.h>
 #include <aerospike/as_arraylist.h>
+#include <aerospike/as_cdt_order.h>
+#include <aerospike/as_operations.h>
+#include <aerospike/as_map_operations.h>
+#include <aerospike/as_orderedmap.h>
+#include <aerospike/as_pair.h>
+#include <aerospike/as_exp.h>
+#include <aerospike/as_batch.h>
+#include <aerospike/aerospike_batch.h>
 
 // ----------------------------------------------------------------------------
 
@@ -129,6 +137,7 @@ int call_cluster_info(const char *buf, int *index, int arity, int fd_out);
 int call_config_info(const char *buf, int *index, int arity, int fd_out);
 
 int call_connect(const char *buf, int *index, int arity, int fd_out);
+int call_anon_connect(const char *buf, int *index, int arity, int fd_out);
 
 int call_aerospike_init(const char *buf, int *index, int arity, int fd_out);
 
@@ -159,6 +168,14 @@ int call_help(const char *buf, int *index, int arity, int fd_out);
 
 int call_foo(const char *buf, int *index, int arity, int fd_out);
 int call_bar(const char *buf, int *index, int arity, int fd_out);
+
+int call_port_cdt_get(const char *buf, int *index, int arity, int fd_out);
+int call_port_cdt_put(const char *buf, int *index, int arity, int fd_out);
+int call_port_cdt_expire(const char *buf, int *index, int arity, int fd_out);
+int call_port_cdt_delete_by_keys(const char *buf, int *index, int arity, int fd_out);
+int call_port_cdt_delete_by_keys_batch(const char *buf, int *index, int arity, int fd_out);
+int call_port_binary_remove(const char *buf, int *index, int arity, int fd_out);
+
 void logfile(std::string str);
 
 char err_msg[8][80] = {
@@ -231,6 +248,9 @@ int function_call(const char *buf, int *index, int arity, int fd_out) {
     if (check_name(fname, "connect", arity, 3)) {
         return call_connect(buf, index, arity, fd_out);
     }
+    if (check_name(fname, "anon_connect", arity, 1)) {
+        return call_anon_connect(buf, index, arity, fd_out);
+    }
     if (check_name(fname, "key_exists", arity, 4)) {
         return call_key_exists(buf, index, arity, fd_out);
     }
@@ -286,6 +306,25 @@ int function_call(const char *buf, int *index, int arity, int fd_out) {
         return call_port_status(buf, index, arity, fd_out);
     }
 
+
+    if (check_name(fname, "cdt_get", arity, 5)) {
+        return call_port_cdt_get(buf, index, arity, fd_out);
+    }
+    if (check_name(fname, "cdt_put", arity, 7)) {
+        return call_port_cdt_put(buf, index, arity, fd_out);
+    }
+    if (check_name(fname, "cdt_expire", arity, 5)) {
+        return call_port_cdt_expire(buf, index, arity, fd_out);
+    }
+    if (check_name(fname, "cdt_delete_by_keys", arity, 6)) {
+        return call_port_cdt_delete_by_keys(buf, index, arity, fd_out);
+    }
+    if (check_name(fname, "cdt_delete_by_keys_batch", arity, 5)) {
+        return call_port_cdt_delete_by_keys_batch(buf, index, arity, fd_out);
+    }
+    if (check_name(fname, "binary_remove", arity, 6)) {
+        return call_port_binary_remove(buf, index, arity, fd_out);
+    }
 
     if (check_name(fname, "foo", arity, 2)) {
         return call_foo(buf, index, arity, fd_out);
@@ -524,6 +563,27 @@ int call_connect(const char *buf, int *index, int arity, int fd_out) {
     POST
 }
 
+int call_anon_connect(const char *buf, int *index, int arity, int fd_out) {
+    PRE
+
+    CHECK_INIT
+
+	as_error err;
+ 
+	if (aerospike_connect(&as, &err) != AEROSPIKE_OK) {
+		// as_event_close_loops();
+        ERROR(err.message)
+        is_connected = 0;
+        goto end;
+	}
+
+    is_connected = 1;
+    OK("connected")
+
+    end:
+    POST
+}
+
 void logfile(std::string str){
     std::fstream file;
     file.open("/tmp/aspikeport", std::ios::out | std::ios::app);
@@ -594,14 +654,14 @@ int call_binary_key_put(const char *buf, int *index, int arity, int fd_out) {
     std::string bin_name, bin_str_value;
     long bin_int_value;
     std::vector<as_bytes*> bin_vec;
-    int ret_val = 0; 
+    //int ret_val = 0; 
     for (int i = 0; i < bin_list_length; i++) {
         if (ei_decode_tuple_header(buf, index, &t_length) != 0 || t_length != 2)
             {STOPERROR("invalid tuple")}
         if (decode_bin_term(buf, index, bin_name) < 0 )
             {STOPERROR("invalid bin_name")}
-	if (ei_get_type(buf, index, &term_type, &term_size) < 0)
-	     {STOPERROR("BKP invalid bin value type (should be binary or integer)")}
+        if (ei_get_type(buf, index, &term_type, &term_size) < 0)
+             {STOPERROR("BKP invalid bin value type (should be binary or integer)")}
 
         if((term_type == ERL_BINARY_EXT) && (decode_bin_term(buf, index, bin_str_value) == 0)){
 	    bin_vec.push_back(as_bytes_new(bin_str_value.size()));
@@ -609,7 +669,7 @@ int call_binary_key_put(const char *buf, int *index, int arity, int fd_out) {
 	    as_bytes_set(bytes_v, 0, (const uint8_t *)bin_str_value.c_str(), bin_str_value.size());
 	    if(!as_record_set_bytes(&rec, bin_name.c_str(), bytes_v)){
 		as_bytes_destroy(bytes_v);
-		ret_val = 1;
+		//ret_val = 1;
 	    }
  	} else if((term_type == ERL_SMALL_INTEGER_EXT) || (term_type == ERL_INTEGER_EXT)){
            if(ei_decode_long(buf, index, &bin_int_value) == 0){
@@ -951,6 +1011,177 @@ static void dump_binary_bin(ei_x_buff *p_res_buf, const as_bin* p_bin) {
             ei_x_encode_string(p_res_buf, val_as_str);
             free(val_as_str);
     }
+}
+
+static void format_value_out(ei_x_buff *p_res_buf, as_val_t type, as_bin_value *val) {
+    char* val_as_str = NULL;
+    switch (type){
+        case AS_INTEGER:
+            ei_x_encode_long(p_res_buf, val->integer.value);
+            break;
+        case AS_STRING:
+        case AS_BYTES: {
+            as_bytes asbval = val->bytes;
+            uint8_t * bin_as_str = as_bytes_get(&asbval);
+            auto len = asbval.size;
+    	    ei_x_encode_binary(p_res_buf, bin_as_str, len);
+        }break;
+        case AS_LIST: {
+	        as_list *int_list = &val->list;
+            auto len = as_list_size(int_list);
+    	    ei_x_encode_list_header(p_res_buf, len);
+	    conversion_data convd = {
+            	.env = p_res_buf, .count = 0};
+            as_list_foreach((as_list *)(&val->list), list_to_intlist_each, &convd);
+    	    ei_x_encode_empty_list(p_res_buf);
+        }break;
+        case AS_MAP: {
+            auto len = as_map_size((as_map *)(&val->map));
+            const as_orderedmap *amap = (const as_orderedmap*)&val->map;
+            as_orderedmap_iterator it;
+            as_orderedmap_iterator_init(&it, amap);
+            ei_x_encode_list_header(p_res_buf, len * 2);
+            while ( as_orderedmap_iterator_has_next(&it) ) {
+                long fccount = 0;
+                const as_val* val = as_orderedmap_iterator_next(&it);
+                as_pair * apr = as_pair_fromval(val);
+
+                as_string *asbval = as_string_fromval(as_pair_1(apr));
+                auto lenk = as_string_len(asbval);
+                ei_x_encode_binary(p_res_buf, as_string_get(asbval), lenk);
+                
+                const as_orderedmap *vmap = (const as_orderedmap*)as_map_fromval(as_pair_2(apr));
+                as_orderedmap_iterator iti_int;
+                as_orderedmap_iterator_init(&iti_int, vmap);
+                long ttlsm;
+                as_string *vnt_s;
+                as_bytes *vnt_b;
+                uint vnt_type = 0;
+                while ( as_orderedmap_iterator_has_next(&iti_int) ) {
+                    const as_val* valsm = as_orderedmap_iterator_next(&iti_int);
+                    as_pair * aprsm = as_pair_fromval(valsm);
+                    if(as_pair_2(aprsm)->type == 9){
+                         vnt_b = as_bytes_fromval(as_pair_2(aprsm));
+                         vnt_type = 1;
+                        fccount++;
+                    }else if(as_pair_2(aprsm)->type == 3){
+                        ttlsm = as_integer_get((as_integer*)as_pair_2(aprsm));
+                        fccount++;
+                    }else if(as_pair_2(aprsm)->type == 4){
+                        vnt_s = as_string_fromval(as_pair_2(aprsm));
+                        vnt_type = 2;
+                        fccount++;
+                    }
+                }
+                if(fccount == 2){
+                    ei_x_encode_tuple_header(p_res_buf, 2);
+                    if(vnt_type == 2){
+                        ei_x_encode_binary(p_res_buf, as_string_get(vnt_s), as_string_len(vnt_s));
+                    } else if(vnt_type == 1) {
+                        ei_x_encode_binary(p_res_buf, as_bytes_get(vnt_b), as_bytes_size(vnt_b));
+                    }
+                    ei_x_encode_long(p_res_buf, ttlsm);
+                } else {
+                    ei_x_encode_atom(p_res_buf, "undefined");
+                }
+                as_orderedmap_iterator_destroy(&iti_int);
+            }
+            ei_x_encode_empty_list(p_res_buf);
+            as_orderedmap_iterator_destroy(&it);
+
+
+            /*auto len = as_map_size((as_map *)(&val->map));
+	        std::vector<ERL_NIF_TERM> * erl_list = new std::vector<ERL_NIF_TERM>();
+	        erl_list->reserve(len*2);
+            
+            const as_orderedmap *amap = (const as_orderedmap*)&val->map;
+            as_orderedmap_iterator it;
+            as_orderedmap_iterator_init(&it, amap);
+            while ( as_orderedmap_iterator_has_next(&it) ) {
+                long fccount = 0;
+                const as_val* val = as_orderedmap_iterator_next(&it);
+                as_pair * apr = as_pair_fromval(val);
+                erl_list->push_back(get_binary_asval(env, as_pair_1(apr)));
+
+                const as_orderedmap *vmap = (const as_orderedmap*)as_map_fromval(as_pair_2(apr));
+                as_orderedmap_iterator iti_int;
+                as_orderedmap_iterator_init(&iti_int, vmap);
+                ERL_NIF_TERM vnt, ttlsm;
+                while ( as_orderedmap_iterator_has_next(&iti_int) ) {
+                    const as_val* valsm = as_orderedmap_iterator_next(&iti_int);
+                    as_pair * aprsm = as_pair_fromval(valsm);
+                    if(as_pair_2(aprsm)->type == 9){
+                        vnt = get_binaryb_asval(env, as_pair_2(aprsm));
+                        fccount++;
+                    }else if(as_pair_2(aprsm)->type == 3){
+                        ttlsm = enif_make_int64(env, as_integer_get((as_integer*)as_pair_2(aprsm)));
+                        fccount++;
+                    }else if(as_pair_2(aprsm)->type == 4){
+                        vnt = get_binary_asval(env, as_pair_2(aprsm));
+                        fccount++;
+                    }
+                }
+                as_orderedmap_iterator_destroy(&iti_int);
+                if(fccount == 2){
+                    erl_list->push_back(enif_make_tuple2(env, vnt, ttlsm));
+                }
+            }
+            as_orderedmap_iterator_destroy(&it);
+            if(erl_list->size() == 0){
+                return enif_make_list(env, 0);
+            } else {
+	            auto dlret = enif_make_list_from_array(env, erl_list->data(), erl_list->size());
+                delete erl_list;
+                return dlret;
+            }*/
+        }break;
+        default:
+            val_as_str = as_val_tostring(val);
+            ei_x_encode_string(p_res_buf, val_as_str);
+            free(val_as_str);
+    }
+
+}
+
+static int dump_cdt_records(ei_x_buff *p_res_buf, const as_record *p_rec) {
+    int res = 1;
+    if (p_rec == NULL) {
+        ERRORP("NULL p_rec - internal error")
+        return res;
+    } else if (p_rec->key.valuep) {
+	    char* key_val_as_str = as_val_tostring(p_rec->key.valuep);
+        OKP(key_val_as_str)
+	    free(key_val_as_str);
+        return res;
+    } else {
+
+        as_record_iterator it;
+        as_record_iterator_init(&it, p_rec);
+        OK0P
+
+
+        uint16_t num_bins = as_record_numbins(p_rec);
+        ei_x_encode_list_header(p_res_buf, num_bins);
+        logfile("DCR numbins: " + std::to_string(num_bins) );
+
+        while (as_record_iterator_has_next(&it)) {
+            const as_bin* p_bin = as_record_iterator_next(&it);
+            ei_x_encode_tuple_header(p_res_buf, 2);
+            char* name = as_bin_get_name(p_bin);
+            auto namelen = strlen(name);
+
+            std::string debug_bn(name, namelen);
+            logfile("DCR name: " + debug_bn + " - " + std::to_string(namelen));
+            ei_x_encode_binary(p_res_buf, name, namelen);
+
+            uint type = as_bin_get_type(p_bin);
+            format_value_out(p_res_buf, type, as_bin_get_value(p_bin));        
+        }
+        
+        ei_x_encode_empty_list(p_res_buf);
+        as_record_iterator_destroy(&it);
+    }
+    return res;
 }
 
 static int binary_dump_records(ei_x_buff *p_res_buf, const as_record *p_rec) {
@@ -1429,6 +1660,119 @@ int call_help(const char *buf, int *index, int arity, int fd_out) {
     OK(info)
     free(info);
 
+    POST
+}
+
+int call_port_cdt_get(const char *buf, int *index, int arity, int fd_out) {
+    PRE
+    
+    int term_size;
+    int term_type;
+    long len;
+    
+    if (ei_get_type(buf, index, &term_type, &term_size) < 0 || term_type != ERL_BINARY_EXT)
+    	{STOPERROR("CPCG invalid namespace bytestring size")}
+    char ns[term_size + 1];
+    if (ei_decode_binary(buf, index, ns, &len) < 0) 
+        {STOPERROR("CPCG invalid first argument: namespace")}
+    ns[len] = '\0'; 
+    logfile("CPCG2");
+
+    if (ei_get_type(buf, index, &term_type, &term_size) < 0 || term_type != ERL_BINARY_EXT)
+    	{STOPERROR("CPCG invalid namespace bytestring size")}
+    char aspk_set[term_size + 1];
+    if (ei_decode_binary(buf, index, aspk_set, &len) < 0) 
+        {STOPERROR("CPCG invalid second argument: set")}
+    aspk_set[len] = '\0'; 
+    logfile("CPCG3");
+
+    if (ei_get_type(buf, index, &term_type, &term_size) < 0 || term_type != ERL_BINARY_EXT)
+    	{STOPERROR("CPCG invalid namespace bytestring size")}
+    char aspk_key[term_size + 1];
+    if (ei_decode_binary(buf, index, aspk_key, &len) < 0) 
+        {STOPERROR("CPCG invalid third argument: key")}
+    aspk_key[len] = '\0'; 
+    logfile("CPCG4");
+
+    // {max_retries, sleep_between_retries, socket_timeout, total_timeout}
+    long max_retries = 0;
+    long sleep_between_retries = 0;
+    long socket_timeout = 30000;
+    long total_timeout = 1000;
+    int tuple_len; 
+    ei_decode_tuple_header(buf, index, &tuple_len);
+    if(tuple_len != 4)
+        {STOPERROR("CPCG invalid 4 argument: policy ( wrong size )")}
+    if (ei_get_type(buf, index, &term_type, &term_size) < 0 || !( term_type == ERL_SMALL_INTEGER_EXT || term_type == ERL_INTEGER_EXT ))
+    	{STOPERROR("CPCG invalid policy1")}
+    ei_decode_long(buf, index, &max_retries);
+    if (ei_get_type(buf, index, &term_type, &term_size) < 0 || !( term_type == ERL_SMALL_INTEGER_EXT || term_type == ERL_INTEGER_EXT ))
+    	{STOPERROR("CPCG invalid policy2")}
+    ei_decode_long(buf, index, &sleep_between_retries);
+    if (ei_get_type(buf, index, &term_type, &term_size) < 0 || !( term_type == ERL_SMALL_INTEGER_EXT || term_type == ERL_INTEGER_EXT ))
+    	{STOPERROR("CPCG invalid policy3")}
+    ei_decode_long(buf, index, &socket_timeout);
+    if (ei_get_type(buf, index, &term_type, &term_size) < 0 || !( term_type == ERL_SMALL_INTEGER_EXT || term_type == ERL_INTEGER_EXT ))
+    	{STOPERROR("CPCG invalid policy4")}
+    ei_decode_long(buf, index, &total_timeout);
+
+    CHECK_ALL
+
+	as_error err;
+    as_key key;
+    as_record* p_rec = NULL;    
+
+	as_key_init_str(&key, ns, aspk_set, aspk_key);
+    as_policy_read p;
+	as_policy_read_init(&p);
+    p.base.max_retries = max_retries;
+    p.base.sleep_between_retries = sleep_between_retries;
+    p.base.socket_timeout = socket_timeout;
+    p.base.total_timeout = total_timeout;
+
+    if (aerospike_key_get(&as, &err, NULL, &key, &p_rec)  != AEROSPIKE_OK) {
+        if (p_rec != NULL) {
+            as_record_destroy(p_rec);
+        }
+        as_key_destroy(&key);
+        STOPERROR(err.message)
+    }
+
+    as_key_destroy(&key);
+    if (p_rec == NULL) {
+        STOPERROR("NULL p_rec - internal error")
+    }
+
+    res = dump_cdt_records(&res_buf, p_rec);
+    if (p_rec != NULL) {
+        as_record_destroy(p_rec);
+    }
+    logfile("CPCG end: " +  std::to_string(res));
+    POST
+}
+int call_port_cdt_put(const char *buf, int *index, int arity, int fd_out) {
+    PRE
+    CHECK_ALL
+    POST
+}
+int call_port_cdt_expire(const char *buf, int *index, int arity, int fd_out) {
+    PRE
+    CHECK_ALL
+    POST
+}
+int call_port_cdt_delete_by_keys(const char *buf, int *index, int arity, int fd_out) {
+    PRE
+    CHECK_ALL
+    POST
+}
+int call_port_cdt_delete_by_keys_batch(const char *buf, int *index, int arity, int fd_out) {
+    PRE
+    CHECK_ALL
+    POST
+}
+int call_port_binary_remove(const char *buf, int *index, int arity, int fd_out) {
+    PRE
+    CHECK_ALL
     POST
 }
 
