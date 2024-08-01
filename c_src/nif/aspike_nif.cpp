@@ -1605,9 +1605,11 @@ static ERL_NIF_TERM segment_tag_get(ErlNifEnv* env, int argc, const ERL_NIF_TERM
     as_key key;
     as_record* p_rec = NULL;    
 
+    static const char* bins[] = {aspk_columns.c_str(), NULL};
+
 	as_key_init_str(&key, name_space.c_str(), aspk_set.c_str(), aspk_key.c_str());
 
-    if (aerospike_key_select(&as, &err, NULL, &key, aspk_bins.size(), aspk_bins.data(), &p_rec)!= AEROSPIKE_OK){
+    if (aerospike_key_select(&as, &err, NULL, &key, bins, &p_rec)!= AEROSPIKE_OK){
         if (p_rec != NULL) {
             as_record_destroy(p_rec);
         }
@@ -2038,7 +2040,7 @@ static ErlNifFunc nif_funcs[] = {
     NIF_FUN("a_key_put", 6, a_key_put),
     {"foo", 1, foo_nif},
     {"bar", 1, bar_nif},
-    NIF_FUN("segment_tag_get", 4, string_get)
+    NIF_FUN("segment_tag_get", 4, segment_tag_get)
 };
 
 ERL_NIF_INIT(aspike_nif, nif_funcs, NULL, NULL, NULL, NULL)
