@@ -1573,6 +1573,67 @@ static ERL_NIF_TERM binary_get(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv
 //
 }
 
+static ERL_NIF_TERM segment_tag_get(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[])
+{
+    ErlNifBinary bin_ns, bin_set, bin_key, bin_columns;;
+    std::string name_space, aspk_set, aspk_key, aspk_columns;
+    
+    if (!enif_inspect_binary(env, argv[0], &bin_ns)) {
+	    return enif_make_badarg(env);
+    }
+    name_space.assign((const char*) bin_ns.data, bin_ns.size);
+
+    if (!enif_inspect_binary(env, argv[1], &bin_set)) {
+	    return enif_make_badarg(env);
+    }
+    aspk_set.assign((const char*) bin_set.data, bin_set.size);
+
+    if (!enif_inspect_binary(env, argv[2], &bin_key)) {
+	    return enif_make_badarg(env);
+    }
+    aspk_key.assign((const char*) bin_key.data, bin_key.size);
+
+    if (!enif_inspect_binary(env, argv[3], &bin_columns)) {
+	    return enif_make_badarg(env);
+    }
+    aspk_columns.assign((const char*) bin_columns.data, bin_columns.size);
+
+    CHECK_ALL
+
+    ERL_NIF_TERM rc, msg;
+	as_error err;
+    as_key key;
+    as_record* p_rec = NULL;    
+
+    static const char* bins[] = {aspk_columns.c_str(), NULL};
+
+	as_key_init_str(&key, name_space.c_str(), aspk_set.c_str(), aspk_key.c_str());
+
+    if (aerospike_key_select(&as, &err, NULL, &key, bins, &p_rec)!= AEROSPIKE_OK){
+        if (p_rec != NULL) {
+            as_record_destroy(p_rec);
+        }
+        rc = erl_error;
+        msg = enif_make_string(env, err.message, ERL_NIF_UTF8);
+        return enif_make_tuple2(env, rc, msg);
+    }
+    if (p_rec == NULL) {
+        rc = erl_error;
+        msg = enif_make_string(env, "NULL p_rec - internal error", ERL_NIF_UTF8);
+        return enif_make_tuple2(env, rc, msg);
+    }
+
+    if(p_rec->bins.entries->valuep->string.value) {
+        fprintf(stderr, "%s\n", p_rec->bins.entries->valuep->string.value);
+        msg =  enif_make_string(env,p_rec->bins.entries->valuep->string.value,ERL_NIF_UTF8);
+  }
+    rc = erl_ok;
+    if (p_rec != NULL) {
+        as_record_destroy(p_rec);
+    }
+    return enif_make_tuple2(env, rc, msg);
+}
+
 static ERL_NIF_TERM key_select(ErlNifEnv* env, int argc, const ERL_NIF_TERM argv[])
 {
     char name_space[MAX_NAMESPACE_SIZE];
@@ -1978,7 +2039,8 @@ static ErlNifFunc nif_funcs[] = {
     // ----------------------------------------------------
     NIF_FUN("a_key_put", 6, a_key_put),
     {"foo", 1, foo_nif},
-    {"bar", 1, bar_nif}
+    {"bar", 1, bar_nif},
+    NIF_FUN("segment_tag_get", 4, segment_tag_get)
 };
 
 ERL_NIF_INIT(aspike_nif, nif_funcs, NULL, NULL, NULL, NULL)
