@@ -111,7 +111,7 @@
 % -------------------------------------------------------------------------------
 
 init() ->
-    erlang:load_nif("../c_src/nif/aspike_nif", 0).
+    erlang:load_nif(utils:find_lib(?LIBNAME), 0).
 
 not_loaded(Line) ->
     erlang:nif_error({not_loaded, [{module, ?MODULE}, {line, Line}]}).
