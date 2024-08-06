@@ -1624,9 +1624,8 @@ static ERL_NIF_TERM segment_tag_get(ErlNifEnv* env, int argc, const ERL_NIF_TERM
     }
 
     if(p_rec->bins.entries->valuep->string.value) {
-        fprintf(stderr, "%s\n", p_rec->bins.entries->valuep->string.value);
-        msg =  enif_make_string(env,p_rec->bins.entries->valuep->string.value,ERL_NIF_UTF8);
-  }
+        msg =  enif_make_string(env, p_rec->bins.entries->valuep->string.value, ERL_NIF_UTF8);
+    }
     rc = erl_ok;
     if (p_rec != NULL) {
         as_record_destroy(p_rec);
